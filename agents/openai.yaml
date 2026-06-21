@@ -1,0 +1,9 @@
+interface:
+  display_name: "Antigravity Gemini Bridge"
+  short_description: "Collaborate with local Antigravity / Gemini"
+  default_prompt: "Use $antigravity-gemini-bridge to reconnect a local Antigravity session and collaborate with Gemini on a shared task."
+  icon_small: "./assets/icon-small.svg"
+  icon_large: "./assets/logo-large.svg"
+  brand_color: "#20B2AA"
+policy:
+  allow_implicit_invocation: false
