@@ -20,7 +20,7 @@ function ConvertTo-AntigravityFileUri {
         [string]$Path
     )
 
-    $resolved = (Resolve-Path -LiteralPath $Path).Path
+    $resolved = [System.IO.Path]::GetFullPath($Path)
     $driveLetter = $resolved.Substring(0, 1).ToLowerInvariant()
     $remainder = $resolved.Substring(2).Replace('\', '/')
     return "file:///${driveLetter}:$remainder"

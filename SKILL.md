@@ -7,7 +7,7 @@ description: Use when Codex needs to reconnect a locally logged-in Antigravity s
 
 ## Overview
 
-Use this skill to let Codex collaborate with a locally logged-in Antigravity Gemini session as a second agent. Codex remains the planner, reviewer, and final acceptance gate; Gemini becomes the local collaborator for execution, brainstorming, or back-and-forth discussion.
+Use this skill to let Codex collaborate with a locally logged-in Antigravity Gemini session as a second agent. Gemini is usually the primary writer or executor for the delegated task, while Codex remains responsible for scope control, supervision, review, and final acceptance.
 
 ## When To Use
 
@@ -37,7 +37,10 @@ Follow this order:
    - capability matrix
    - collaborative chat
 5. If starting a fresh collaborative chat, send the intro only once on the first turn.
-6. Inspect Gemini's actual reply or artifacts before telling the user anything is done.
+6. Use the file handoff rule before file-related collaboration: if the exact files are known, give Gemini the file paths; if the exact files are not locked yet, name the expected file area or candidate files; only skip file handoff for pure discussion with no current local artifact.
+7. Default to Gemini for large writing or bulk-edit work: give Gemini the direction, scope boundaries, file paths, and acceptance checks first, then let Gemini produce the first pass.
+8. Let Codex stay in the supervisor role: narrow the scope when Gemini drifts, remind Gemini of constraints, and perform the final review or spot-fixes.
+9. Inspect Gemini's actual reply or artifacts before telling the user anything is done.
 
 ## Operating Modes
 
@@ -83,7 +86,15 @@ Start a new conversation with:
 pwsh -NoLogo -NoProfile -File "$PSScriptRoot\scripts\Start-AntigravityConversation.ps1" -WorkspacePath D:\MyGame -OpeningPrompt 'Let''s brainstorm the MVP for the phase 3 bridge CLI.'
 ```
 
-Then continue from the returned `cascadeId` with `Send-AntigravityMessage`. For genuine improvised chat, read Gemini's actual previous reply first, then decide the next prompt from that reply instead of pre-writing every turn.
+Then continue from the returned `cascadeId` with `Send-AntigravityMessage`. For genuine improvised chat, read Gemini's actual previous reply first, then decide the next prompt from that reply instead of pre-writing every turn. In normal collaboration, let Gemini produce the first concrete draft or edit pass, and keep Codex in the supervisor role unless there is a good reason to take over directly.
+
+When the conversation is about files in the workspace, do not make Gemini guess. Use this rule:
+
+- if the exact files are already known, list the file paths and ask Gemini to inspect them first
+- if the exact files are not locked yet, say that clearly and name the expected file area, candidate files, or document surfaces before asking for suggestions
+- only treat it as pure discussion when there is no current local artifact to inspect
+
+Gemini is often smart and imaginative, but can also miss details or forget part of the scope. Restate the current file set or expected file area, goal, and acceptance checks whenever precision matters.
 
 Use `references/collaboration-playbook.md` for the intro style, turn-taking pattern, and improvised follow-up rules.
 
@@ -109,6 +120,7 @@ Read `references/known-gotchas.md` before changing the flow. The most important 
 
 ## Resources
 
+- `scripts/Invoke-AntigravityBridge.ps1`: unified thin wrapper/CLI for discover, matrix, start, send, and trajectory commands (underlying capabilities are still provided by the existing scripts)
 - `scripts/Discover-AntigravitySession.ps1`: reconnect from current logs
 - `scripts/Invoke-AntigravityRpc.ps1`: create cascades, send messages, parse replies and errors
 - `scripts/Run-AntigravityCapabilityMatrix.ps1`: repeatable end-to-end verification

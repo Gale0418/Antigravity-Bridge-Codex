@@ -7,9 +7,13 @@ if ($trajectoryUri -ne 'http://127.0.0.1:50609/exa.language_server_pb.LanguageSe
     throw "Unexpected trajectory uri: $trajectoryUri"
 }
 
-$workspaceUri = ConvertTo-AntigravityFileUri -Path 'D:\MyGame'
-if ($workspaceUri -ne 'file:///d:/MyGame') {
-    throw "Unexpected workspace uri: $workspaceUri"
+$tempPath = [System.IO.Path]::GetFullPath($env:TEMP)
+$workspaceUri = ConvertTo-AntigravityFileUri -Path $tempPath
+$driveLetter = $tempPath.Substring(0, 1).ToLowerInvariant()
+$remainder = $tempPath.Substring(2).Replace('\', '/')
+$expectedUri = "file:///${driveLetter}:$remainder"
+if ($workspaceUri -ne $expectedUri) {
+    throw "Unexpected workspace uri: $workspaceUri expected: $expectedUri"
 }
 
 Write-Host 'PASS: rpc helper values look correct'

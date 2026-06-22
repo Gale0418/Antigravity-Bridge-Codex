@@ -1,0 +1,42 @@
+{
+  "license": "UNLICENSED",
+  "repository": "https://github.com/Gale0418/Antigravity-Bridge-Codex",
+  "homepage": "https://github.com/Gale0418/Antigravity-Bridge-Codex",
+  "keywords": [
+    "codex",
+    "antigravity",
+    "gemini",
+    "bridge",
+    "skill",
+    "local"
+  ],
+  "interface": {
+    "displayName": "Antigravity Gemini Bridge",
+    "composerIcon": "./assets/icon-small.svg",
+    "longDescription": "Reconnects a locally logged-in Antigravity session, sends prompts through the standalone language server, and exposes a cute local bridge so Codex can collaborate with Gemini.",
+    "defaultPrompt": [
+      "Use Antigravity Gemini Bridge to reconnect a local Gemini session.",
+      "Start a local Gemini collaboration in my current workspace.",
+      "Run the Antigravity capability matrix before we delegate work."
+    ],
+    "developerName": "Gale0418",
+    "shortDescription": "Talk to local Antigravity Gemini from Codex",
+    "brandColor": "#20B2AA",
+    "screenshots": [],
+    "logo": "./assets/logo-large.svg",
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
+    "category": "Productivity"
+  },
+  "version": "0.1.0",
+  "name": "antigravity-gemini-bridge",
+  "skills": "./skills/",
+  "description": "Bridge Codex with a locally logged-in Antigravity Gemini session.",
+  "author": {
+    "email": "Gale0418@users.noreply.github.com",
+    "url": "https://github.com/Gale0418",
+    "name": "Gale0418"
+  }
+}

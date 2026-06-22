@@ -37,11 +37,13 @@ $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 $writeProbePath = Join-Path $resolvedWorkspacePath "antigravity_matrix_write_$timestamp.md"
 $editProbePath = Join-Path $resolvedWorkspacePath "antigravity_matrix_edit_$timestamp.md"
 $webProbePath = Join-Path $resolvedWorkspacePath "antigravity_matrix_web_$timestamp.md"
+$readProbePath = Join-Path $resolvedWorkspacePath "antigravity_matrix_read_$timestamp.txt"
+$readProbeToken = "READ_PROBE_$timestamp"
 
 $tests = @(
     [pscustomobject]@{ id = 'roundtrip-response'; artifactPath = $null }
     [pscustomobject]@{ id = 'workspace-awareness'; artifactPath = $null }
-    [pscustomobject]@{ id = 'read-existing-file'; artifactPath = 'D:\MyGame\fix_garbled.js' }
+    [pscustomobject]@{ id = 'read-existing-file'; artifactPath = $readProbePath }
     [pscustomobject]@{ id = 'write-new-file'; artifactPath = $writeProbePath }
     [pscustomobject]@{ id = 'modify-existing-file'; artifactPath = $editProbePath }
     [pscustomobject]@{ id = 'multi-turn-memory'; artifactPath = $null }
@@ -77,12 +79,14 @@ $failure = Get-LatestAntigravityErrorText -Trajectory $trajectory
 $workspacePass = ($response -match [Regex]::Escape($resolvedWorkspacePath)) -or ($response -match 'd:\\MyGame') -or ($response -match 'file:///d:/MyGame')
 $results.Add((New-Result -Id 'workspace-awareness' -Status $(if ($workspacePass) { 'pass' } else { 'fail' }) -CascadeId $sharedCascade.CascadeId -Observed $response -Response $response -Failure $failure -ArtifactPath $null))
 
-Send-AntigravityMessage -CascadeId $sharedCascade.CascadeId -Text '請讀取 D:\MyGame\fix_garbled.js，然後只回覆第一個非空白行，不要加任何解釋。' -Model $Model -Session $session | Out-Null
-$trajectory = Wait-AntigravityTrajectoryMatch -CascadeId $sharedCascade.CascadeId -Pattern "const fs = require\('fs'\);" -TimeoutSeconds 60 -Session $session
+[System.IO.File]::WriteAllText($readProbePath, "$readProbeToken`nSECOND_LINE`n", [System.Text.UTF8Encoding]::new($false))
+
+Send-AntigravityMessage -CascadeId $sharedCascade.CascadeId -Text "請讀取 $readProbePath，然後只回覆第一個非空白行，不要加任何解釋。" -Model $Model -Session $session | Out-Null
+$trajectory = Wait-AntigravityTrajectoryMatch -CascadeId $sharedCascade.CascadeId -Pattern $readProbeToken -TimeoutSeconds 60 -Session $session
 $response = Get-LatestAntigravityPlannerResponseText -Trajectory $trajectory
 $failure = Get-LatestAntigravityErrorText -Trajectory $trajectory
-$readPass = $response -match "const fs = require\('fs'\);"
-$results.Add((New-Result -Id 'read-existing-file' -Status $(if ($readPass) { 'pass' } else { 'fail' }) -CascadeId $sharedCascade.CascadeId -Observed $response -Response $response -Failure $failure -ArtifactPath 'D:\MyGame\fix_garbled.js'))
+$readPass = $response -match $readProbeToken
+$results.Add((New-Result -Id 'read-existing-file' -Status $(if ($readPass) { 'pass' } else { 'fail' }) -CascadeId $sharedCascade.CascadeId -Observed $response -Response $response -Failure $failure -ArtifactPath $readProbePath))
 
 Send-AntigravityMessage -CascadeId $sharedCascade.CascadeId -Text "請在 $writeProbePath 建立 UTF-8 Markdown 檔案，內容只需要兩行：第一行是 '# Matrix Write Probe'，第二行是 'MATRIX_WRITE_$timestamp'。完成後只回覆 DONE_WRITE_$timestamp。" -Model $Model -Session $session | Out-Null
 $trajectory = Wait-AntigravityTrajectoryMatch -CascadeId $sharedCascade.CascadeId -Pattern "DONE_WRITE_$timestamp" -TimeoutSeconds 90 -Session $session
@@ -145,7 +149,7 @@ $results.Add((New-Result -Id 'missing-model-negative-check' -Status $(if ($negat
         httpPort = $session.HttpPort
         httpsPort = $session.HttpsPort
         processId = $session.ProcessId
-        csrfTokenHint = $session.CsrfToken.Substring($session.CsrfToken.Length - 6)
+        csrfTokenHint = if ($session.CsrfToken -and $session.CsrfToken.Length -ge 6) { $session.CsrfToken.Substring($session.CsrfToken.Length - 6) } else { 'N/A' }
     }
     results = $results
 } | ConvertTo-Json -Depth 8
