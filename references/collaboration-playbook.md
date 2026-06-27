@@ -18,8 +18,10 @@ Rules:
 
 - send it only once per new cascade
 - do not repeat it every turn
+- explicitly say that Codex is speaking before the task handoff; never start with an anonymous task dump
 - make the role split clear early: Gemini writes or executes first, Codex supervises and verifies
 - after the intro, move quickly to the real task
+- if later turns could be ambiguous, restate briefly that this is Codex speaking before giving the next instruction
 
 ## Turn-Taking Pattern
 
@@ -67,11 +69,13 @@ Rules:
 - restate the goal and acceptance checks when precision matters, because Gemini is often smart and imaginative but can still forget details or drop part of the scope
 
 Good:
-- `Please inspect D:\MyGame\antigravity-bridge-codex\SKILL.md and D:\MyGame\antigravity-bridge-codex\references\collaboration-playbook.md first, then tell me what you think should change.`
-- `The exact file is not locked yet. This likely lives in the add-reminder screen copy and TTS wording files under D:\MyGame\little-bear-reminder. Please inspect that area first and tell me which files look relevant before proposing copy changes.`
-- `The user explicitly authorized a full-workspace pass. Please inspect D:\MyGame\antigravity-bridge-codex on this same local machine through the locally logged-in Antigravity session, give me a short map of the most relevant areas for monetization and future roadmap discussion, then we will narrow to the specific files.`
+- `I am Codex. Please inspect D:\MyGame\antigravity-bridge-codex\SKILL.md and D:\MyGame\antigravity-bridge-codex\references\collaboration-playbook.md first, then tell me what you think should change.`
+- `Codex here. Please inspect D:\MyGame\antigravity-bridge-codex\SKILL.md and D:\MyGame\antigravity-bridge-codex\references\collaboration-playbook.md first, then tell me what you think should change.`
+- `I am Codex. The exact file is not locked yet. This likely lives in the add-reminder screen copy and TTS wording files under D:\MyGame\little-bear-reminder. Please inspect that area first and tell me which files look relevant before proposing copy changes.`
+- `I am Codex. The user explicitly authorized a full-workspace pass. Please inspect D:\MyGame\antigravity-bridge-codex on this same local machine through the locally logged-in Antigravity session, give me a short map of the most relevant areas for monetization and future roadmap discussion, then we will narrow to the specific files.`
 
 Bad:
+- `Please inspect these files and tell me what to change.`
 - `Help me improve the skill.`
 - `Please fix whatever looks wrong in the repo.`
 - `Read the whole workspace.`

@@ -1,5 +1,5 @@
 interface:
-  display_name: "Antigravity Gemini Bridge"
+  display_name: "Antigravity Bridge Codex"
   short_description: "Collaborate with local Antigravity / Gemini"
   default_prompt: "Use $antigravity-gemini-bridge to reconnect a local Antigravity session and collaborate with Gemini on a shared task."
   icon_small: "./assets/icon-small.png"

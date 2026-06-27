@@ -11,16 +11,16 @@
     "local"
   ],
   "interface": {
-    "displayName": "Antigravity Gemini Bridge",
+    "displayName": "Antigravity Bridge Codex",
     "composerIcon": "./assets/icon-small.svg",
-    "longDescription": "Reconnects a locally logged-in Antigravity session, sends prompts through the standalone language server, and exposes a cute local bridge so Codex can collaborate with Gemini.",
+    "longDescription": "Reconnects a locally logged-in Antigravity session, sends prompts through the standalone language server, and exposes Antigravity Bridge Codex so Codex can collaborate through the local bridge.",
     "defaultPrompt": [
-      "Use Antigravity Gemini Bridge to reconnect a local Gemini session.",
+      "Use Antigravity Bridge Codex to reconnect a local Gemini session.",
       "Start a local Gemini collaboration in my current workspace.",
       "Run the Antigravity capability matrix before we delegate work."
     ],
     "developerName": "Gale0418",
-    "shortDescription": "Talk to local Antigravity Gemini from Codex",
+    "shortDescription": "Talk to local Antigravity from Codex",
     "brandColor": "#20B2AA",
     "screenshots": [],
     "logo": "./assets/logo-large.svg",

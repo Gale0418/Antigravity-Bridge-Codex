@@ -1,6 +1,6 @@
 # Skill Packaging
 
-This repository serves as the distributable source for the `antigravity-gemini-bridge` Codex skill.
+This repository serves as the distributable source for the `antigravity-gemini-bridge` Codex skill, presented to users as `Antigravity Bridge Codex`.
 
 ## Directory Structure
 

@@ -109,7 +109,7 @@ $pluginManifest | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $installed
 
 $marketplaceManifest = @{
     name = 'antigravity-gemini-bridge-local'
-    interface = @{ displayName = 'Local Antigravity Gemini Bridge' }
+    interface = @{ displayName = 'Local Antigravity Bridge Codex' }
     plugins = @(
         @{
             name = 'antigravity-gemini-bridge'

@@ -3,7 +3,7 @@ name: antigravity-gemini-bridge
 description: Use when Codex needs to reconnect a locally logged-in Antigravity session, talk to Gemini through the standalone language server, run capability or multi-turn collaboration checks, or coordinate a shared workspace task where Codex plans and reviews while Gemini executes or brainstorms.
 ---
 
-# Antigravity Gemini Bridge
+# Antigravity Bridge Codex
 
 ## Overview
 
@@ -36,7 +36,7 @@ Follow this order:
    - quick smoke check
    - capability matrix
    - collaborative chat
-5. If starting a fresh collaborative chat, send the intro only once on the first turn.
+5. If starting a fresh collaborative chat, send the intro only once on the first turn, and explicitly identify yourself as Codex before handing anything to Gemini.
 6. Use the file handoff rule before file-related collaboration: if the exact files are known, give Gemini the file paths; if the exact files are not locked yet, name the expected file area or candidate files; only skip file handoff for pure discussion with no current local artifact.
 7. If the user explicitly authorizes whole-workspace inspection, say that clearly to Gemini: this is the user's local workspace on the same machine through a locally logged-in Antigravity session, and Gemini should inspect the named workspace root locally, summarize the relevant areas first, then narrow down to the files that matter.
 8. Default to the lowest Codex-token path: for large writing, bulk-edit work, or brainstorming, give Gemini only the high-level direction, scope boundaries, file paths, and acceptance checks first, then let Gemini produce the first pass.
@@ -99,7 +99,7 @@ When the conversation is about files in the workspace, do not make Gemini guess.
 
 Gemini is often smart and imaginative, but can also miss details or forget part of the scope. Give Gemini the big direction, current file set or expected file area, goal, and acceptance checks, and when the user explicitly authorized whole-workspace inspection, say that the workspace is local to the same machine and ask for a summary-first pass before drilling into files. Then inspect the actual result carefully whenever precision matters.
 
-Use `references/collaboration-playbook.md` for the intro style, turn-taking pattern, and improvised follow-up rules.
+Use `references/collaboration-playbook.md` for the intro style, turn-taking pattern, and improvised follow-up rules. Do not open with an anonymous task dump; Gemini should be able to tell that Codex is the speaker from the very first turn.
 
 ## Verification Rules
 
