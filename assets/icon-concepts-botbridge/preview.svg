@@ -1,0 +1,200 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 560" width="1180" height="560">
+  <rect width="1180" height="560" rx="28" fill="#F4FBFF"/>
+  <text x="48" y="52" font-family="Segoe UI, Microsoft JhengHei, sans-serif" font-size="28" font-weight="700" fill="#0E4C92">Bot + big bridge backdrop concepts</text>
+  <text x="48" y="84" font-family="Segoe UI, Microsoft JhengHei, sans-serif" font-size="16" fill="#37607B">10 minimal SVG candidates with the bridge enlarged behind the cute robot as a background structure</text>
+  <g transform="translate(40,120)">
+    <rect width="180" height="170" rx="24" fill="#FFFFFF" stroke="#D6EAF5"/>
+    <g transform="translate(30,18)">
+  <path d="M12 98C23 59 39 36 60 36C81 36 97 59 108 98" fill="none" stroke="#1E86EA" stroke-width="12" stroke-linecap="round"/>
+  <path d="M22 98C31 71 44 55 60 55C76 55 89 71 98 98" fill="none" stroke="#A9D9FF" stroke-width="8" stroke-linecap="round" opacity="0.95"/>
+  <path d="M34 98V84M47 98V74M60 98V69M73 98V74M86 98V84" stroke="#12365C" stroke-width="5" stroke-linecap="round"/>
+  <path d="M60 20C82 20 98 37 98 60C98 72 94 81 88 89C84 94 83 99 83 104H37C37 99 36 94 32 89C26 81 22 72 22 60C22 37 38 20 60 20Z" fill="#35C8CF"/>
+  <path d="M52 23L48 14" stroke="#1999A5" stroke-width="5" stroke-linecap="round"/>
+  <path d="M68 23L72 14" stroke="#1999A5" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="48" cy="48" r="5" fill="#102F54"/>
+  <circle cx="73" cy="48" r="5" fill="#102F54"/>
+  <circle cx="46" cy="46" r="2" fill="#FFFFFF"/>
+  <circle cx="71" cy="46" r="2" fill="#FFFFFF"/>
+  <path d="M50 66C55 71 65 71 70 66" fill="none" stroke="#102F54" stroke-width="4" stroke-linecap="round"/>
+  <path d="M38 78C46 73 74 73 82 78" fill="none" stroke="#92F4EC" stroke-width="6" stroke-linecap="round"/>
+    </g>
+    <text x="18" y="148" font-family="Segoe UI, Microsoft JhengHei, sans-serif" font-size="16" font-weight="700" fill="#0E4C92">01</text>
+    <text x="50" y="148" font-family="Segoe UI, Microsoft JhengHei, sans-serif" font-size="14" fill="#51738A">Classic backdrop arc</text>
+  </g>
+  <g transform="translate(260,120)">
+    <rect width="180" height="170" rx="24" fill="#FFFFFF" stroke="#D6EAF5"/>
+    <g transform="translate(30,18)">
+  <path d="M10 98C22 57 39 34 60 34C81 34 98 57 110 98" fill="none" stroke="#2187EB" stroke-width="12" stroke-linecap="round"/>
+  <path d="M21 98C31 70 44 54 60 54C76 54 89 70 99 98" fill="none" stroke="#B6E0FF" stroke-width="8" stroke-linecap="round" opacity="0.95"/>
+  <path d="M35 98V84M48 98V74M60 98V69M72 98V74M85 98V84" stroke="#123760" stroke-width="5" stroke-linecap="round"/>
+  <path d="M60 19C83 19 98 36 98 59C98 72 93 81 86 90C83 94 82 99 82 104H38C38 99 37 94 34 90C27 81 22 72 22 59C22 36 37 19 60 19Z" fill="#38CBD4"/>
+  <path d="M51 22L47 14" stroke="#1AA2B0" stroke-width="5" stroke-linecap="round"/>
+  <path d="M69 22L73 14" stroke="#1AA2B0" stroke-width="5" stroke-linecap="round"/>
+  <path d="M41 47C45 44 49 44 53 47" fill="none" stroke="#0F2C4F" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="73" cy="48" r="5" fill="#0F2C4F"/>
+  <circle cx="71" cy="46" r="2" fill="#FFFFFF"/>
+  <path d="M49 66C54 71 66 71 71 66" fill="none" stroke="#0F2C4F" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="43" cy="57" r="4" fill="#8CF0E8"/>
+  <path d="M37 79C46 74 74 74 83 79" fill="none" stroke="#90F4EC" stroke-width="6" stroke-linecap="round"/>
+    </g>
+    <text x="18" y="148" font-family="Segoe UI, Microsoft JhengHei, sans-serif" font-size="16" font-weight="700" fill="#0E4C92">02</text>
+    <text x="50" y="148" font-family="Segoe UI, Microsoft JhengHei, sans-serif" font-size="14" fill="#51738A">Wink backdrop arc</text>
+  </g>
+  <g transform="translate(480,120)">
+    <rect width="180" height="170" rx="24" fill="#FFFFFF" stroke="#D6EAF5"/>
+    <g transform="translate(30,18)">
+  <path d="M12 98C24 58 40 35 60 35C80 35 96 58 108 98" fill="none" stroke="#1F84E8" stroke-width="12" stroke-linecap="round"/>
+  <path d="M23 98C32 71 44 56 60 56C76 56 88 71 97 98" fill="none" stroke="#B5DFFF" stroke-width="8" stroke-linecap="round" opacity="0.95"/>
+  <path d="M34 98V84M47 98V74M60 98V69M73 98V74M86 98V84" stroke="#12365B" stroke-width="5" stroke-linecap="round"/>
+  <path d="M60 18C82 18 98 35 98 58C98 70 94 80 87 88C83 93 82 98 82 104H38C38 98 37 93 33 88C26 80 22 70 22 58C22 35 38 18 60 18Z" fill="#32C6CF"/>
+  <path d="M52 21L48 12" stroke="#1599A7" stroke-width="5" stroke-linecap="round"/>
+  <path d="M68 21L72 12" stroke="#1599A7" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="48" cy="46" r="5" fill="#0F2C4F"/>
+  <circle cx="73" cy="46" r="5" fill="#0F2C4F"/>
+  <circle cx="46" cy="44" r="2" fill="#FFFFFF"/>
+  <circle cx="71" cy="44" r="2" fill="#FFFFFF"/>
+  <path d="M50 64C55 70 65 70 70 64" fill="none" stroke="#0F2C4F" stroke-width="4" stroke-linecap="round"/>
+  <path d="M60 27C63 22 70 22 72 28C73 31 72 34 69 36L60 44L51 36C48 34 47 31 48 28C50 22 57 22 60 27Z" fill="#FFC857"/>
+    </g>
+    <text x="18" y="148" font-family="Segoe UI, Microsoft JhengHei, sans-serif" font-size="16" font-weight="700" fill="#0E4C92">03</text>
+    <text x="50" y="148" font-family="Segoe UI, Microsoft JhengHei, sans-serif" font-size="14" fill="#51738A">Heart bridge aura</text>
+  </g>
+  <g transform="translate(700,120)">
+    <rect width="180" height="170" rx="24" fill="#FFFFFF" stroke="#D6EAF5"/>
+    <g transform="translate(30,18)">
+  <path d="M10 98C22 57 39 34 60 34C81 34 98 57 110 98" fill="none" stroke="#2187EB" stroke-width="12" stroke-linecap="round"/>
+  <path d="M21 98C31 70 44 55 60 55C76 55 89 70 99 98" fill="none" stroke="#B6E0FF" stroke-width="8" stroke-linecap="round" opacity="0.95"/>
+  <path d="M35 98V84M48 98V74M60 98V69M72 98V74M85 98V84" stroke="#123760" stroke-width="5" stroke-linecap="round"/>
+  <path d="M60 19C82 19 98 36 98 59C98 71 94 81 87 90C83 94 82 99 82 104H38C38 99 37 94 33 90C26 81 22 71 22 59C22 36 38 19 60 19Z" fill="#36C8D3"/>
+  <path d="M51 22L47 14" stroke="#1697A8" stroke-width="5" stroke-linecap="round"/>
+  <path d="M69 22L73 14" stroke="#1697A8" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="48" cy="47" r="5" fill="#102F54"/>
+  <circle cx="73" cy="47" r="5" fill="#102F54"/>
+  <circle cx="46" cy="45" r="2" fill="#FFFFFF"/>
+  <circle cx="71" cy="45" r="2" fill="#FFFFFF"/>
+  <path d="M50 65C55 70 65 70 70 65" fill="none" stroke="#102F54" stroke-width="4" stroke-linecap="round"/>
+  <path d="M47 75H73C77 75 80 78 80 82V88C80 92 77 95 73 95H60L54 99V95H47C43 95 40 92 40 88V82C40 78 43 75 47 75Z" fill="#E8FFFF"/>
+  <path d="M48 85H72" stroke="#1BA7B8" stroke-width="4" stroke-linecap="round"/>
+    </g>
+    <text x="18" y="148" font-family="Segoe UI, Microsoft JhengHei, sans-serif" font-size="16" font-weight="700" fill="#0E4C92">04</text>
+    <text x="50" y="148" font-family="Segoe UI, Microsoft JhengHei, sans-serif" font-size="14" fill="#51738A">Chat belly backdrop</text>
+  </g>
+  <g transform="translate(920,120)">
+    <rect width="180" height="170" rx="24" fill="#FFFFFF" stroke="#D6EAF5"/>
+    <g transform="translate(30,18)">
+  <path d="M12 98C24 58 40 35 60 35C80 35 96 58 108 98" fill="none" stroke="#1F84E8" stroke-width="12" stroke-linecap="round"/>
+  <path d="M23 98C32 71 44 56 60 56C76 56 88 71 97 98" fill="none" stroke="#AFDDFF" stroke-width="8" stroke-linecap="round" opacity="0.95"/>
+  <path d="M34 98V84M47 98V74M60 98V69M73 98V74M86 98V84" stroke="#12365B" stroke-width="5" stroke-linecap="round"/>
+  <path d="M60 18C82 18 98 35 98 58C98 71 93 80 86 88C83 92 82 97 82 104H38C38 97 37 92 34 88C27 80 22 71 22 58C22 35 38 18 60 18Z" fill="#34C7D0"/>
+  <path d="M52 21L48 12" stroke="#169AA7" stroke-width="5" stroke-linecap="round"/>
+  <path d="M68 21L72 12" stroke="#169AA7" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="48" cy="46" r="5" fill="#102F54"/>
+  <circle cx="73" cy="46" r="5" fill="#102F54"/>
+  <circle cx="46" cy="44" r="2" fill="#FFFFFF"/>
+  <circle cx="71" cy="44" r="2" fill="#FFFFFF"/>
+  <path d="M50 64C55 69 65 69 70 64" fill="none" stroke="#102F54" stroke-width="4" stroke-linecap="round"/>
+  <rect x="46" y="74" width="28" height="16" rx="6" fill="#E9FFFF"/>
+  <path d="M52 82L57 79L52 76" fill="none" stroke="#1A9FB1" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M68 82L63 79L68 76" fill="none" stroke="#1A9FB1" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M60 76L58 82" stroke="#1A9FB1" stroke-width="3.5" stroke-linecap="round"/>
+    </g>
+    <text x="18" y="148" font-family="Segoe UI, Microsoft JhengHei, sans-serif" font-size="16" font-weight="700" fill="#0E4C92">05</text>
+    <text x="50" y="148" font-family="Segoe UI, Microsoft JhengHei, sans-serif" font-size="14" fill="#51738A">Code belly backdrop</text>
+  </g>
+  <g transform="translate(40,330)">
+    <rect width="180" height="170" rx="24" fill="#FFFFFF" stroke="#D6EAF5"/>
+    <g transform="translate(30,18)">
+  <path d="M11 98C23 57 39 34 60 34C81 34 97 57 109 98" fill="none" stroke="#2288EB" stroke-width="12" stroke-linecap="round"/>
+  <path d="M22 98C31 70 44 54 60 54C76 54 89 70 98 98" fill="none" stroke="#B7E0FF" stroke-width="8" stroke-linecap="round" opacity="0.95"/>
+  <path d="M35 98V84M48 98V74M60 98V69M72 98V74M85 98V84" stroke="#12365D" stroke-width="5" stroke-linecap="round"/>
+  <path d="M60 19C82 19 98 36 98 59C98 72 93 81 86 89C83 93 82 98 82 104H38C38 98 37 93 34 89C27 81 22 72 22 59C22 36 38 19 60 19Z" fill="#35C8D1"/>
+  <path d="M51 22L47 14" stroke="#189AAA" stroke-width="5" stroke-linecap="round"/>
+  <path d="M69 22L73 14" stroke="#189AAA" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="48" cy="46" r="5" fill="#102F54"/>
+  <circle cx="73" cy="46" r="5" fill="#102F54"/>
+  <circle cx="46" cy="44" r="2" fill="#FFFFFF"/>
+  <circle cx="71" cy="44" r="2" fill="#FFFFFF"/>
+  <path d="M48 62C54 72 66 72 72 62" fill="none" stroke="#102F54" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="31" cy="63" r="4" fill="#8AEDE5"/>
+  <circle cx="89" cy="63" r="4" fill="#8AEDE5"/>
+    </g>
+    <text x="18" y="148" font-family="Segoe UI, Microsoft JhengHei, sans-serif" font-size="16" font-weight="700" fill="#0E4C92">06</text>
+    <text x="50" y="148" font-family="Segoe UI, Microsoft JhengHei, sans-serif" font-size="14" fill="#51738A">Big smile backdrop</text>
+  </g>
+  <g transform="translate(260,330)">
+    <rect width="180" height="170" rx="24" fill="#FFFFFF" stroke="#D6EAF5"/>
+    <g transform="translate(30,18)">
+  <path d="M10 100C22 55 40 30 60 30C80 30 98 55 110 100" fill="none" stroke="#2085E9" stroke-width="14" stroke-linecap="round"/>
+  <path d="M22 100C31 68 44 49 60 49C76 49 89 68 98 100" fill="none" stroke="#B9E2FF" stroke-width="9" stroke-linecap="round" opacity="0.95"/>
+  <path d="M35 100V85M48 100V72M60 100V66M72 100V72M85 100V85" stroke="#12365D" stroke-width="5" stroke-linecap="round"/>
+  <path d="M60 18C80 18 96 33 96 54C96 63 93 72 87 80C83 86 82 92 82 98H38C38 92 37 86 33 80C27 72 24 63 24 54C24 33 40 18 60 18Z" fill="#34C7CF"/>
+  <path d="M52 21L48 13" stroke="#1798A5" stroke-width="5" stroke-linecap="round"/>
+  <path d="M68 21L72 13" stroke="#1798A5" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="48" cy="45" r="5" fill="#102F54"/>
+  <circle cx="73" cy="45" r="5" fill="#102F54"/>
+  <circle cx="46" cy="43" r="2" fill="#FFFFFF"/>
+  <circle cx="71" cy="43" r="2" fill="#FFFFFF"/>
+  <path d="M50 61C55 66 65 66 70 61" fill="none" stroke="#102F54" stroke-width="4" stroke-linecap="round"/>
+    </g>
+    <text x="18" y="148" font-family="Segoe UI, Microsoft JhengHei, sans-serif" font-size="16" font-weight="700" fill="#0E4C92">07</text>
+    <text x="50" y="148" font-family="Segoe UI, Microsoft JhengHei, sans-serif" font-size="14" fill="#51738A">Peek over bridge</text>
+  </g>
+  <g transform="translate(480,330)">
+    <rect width="180" height="170" rx="24" fill="#FFFFFF" stroke="#D6EAF5"/>
+    <g transform="translate(30,18)">
+  <path d="M12 98C23 58 40 35 60 35C80 35 97 58 108 98" fill="none" stroke="#2388EB" stroke-width="12" stroke-linecap="round"/>
+  <path d="M23 98C32 71 44 56 60 56C76 56 88 71 97 98" fill="none" stroke="#B6E0FF" stroke-width="8" stroke-linecap="round" opacity="0.95"/>
+  <path d="M34 98V84M47 98V74M60 98V69M73 98V74M86 98V84" stroke="#12365C" stroke-width="5" stroke-linecap="round"/>
+  <path d="M60 18C82 18 98 35 98 58C98 71 93 80 86 88C83 92 82 97 82 104H38C38 97 37 92 34 88C27 80 22 71 22 58C22 35 38 18 60 18Z" fill="#35C8D3"/>
+  <path d="M51 21L47 13" stroke="#1697A8" stroke-width="5" stroke-linecap="round"/>
+  <path d="M69 21L73 13" stroke="#1697A8" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="48" cy="46" r="5" fill="#102F54"/>
+  <path d="M64 46C64 41 68 37 73 37C78 37 82 41 82 46C82 51 78 55 73 55C68 55 64 51 64 46Z" fill="#102F54"/>
+  <circle cx="46" cy="44" r="2" fill="#FFFFFF"/>
+  <circle cx="71" cy="43" r="2" fill="#FFFFFF"/>
+  <path d="M50 64C55 69 65 69 70 64" fill="none" stroke="#102F54" stroke-width="4" stroke-linecap="round"/>
+  <path d="M89 31L93 39L101 39L95 44L97 52L89 47L81 52L83 44L77 39L85 39Z" fill="#FFC857"/>
+    </g>
+    <text x="18" y="148" font-family="Segoe UI, Microsoft JhengHei, sans-serif" font-size="16" font-weight="700" fill="#0E4C92">08</text>
+    <text x="50" y="148" font-family="Segoe UI, Microsoft JhengHei, sans-serif" font-size="14" fill="#51738A">Spark backdrop</text>
+  </g>
+  <g transform="translate(700,330)">
+    <rect width="180" height="170" rx="24" fill="#FFFFFF" stroke="#D6EAF5"/>
+    <g transform="translate(30,18)">
+  <path d="M10 100C22 55 40 30 60 30C80 30 98 55 110 100" fill="none" stroke="#1B7FE7" stroke-width="15" stroke-linecap="round"/>
+  <path d="M23 100C31 69 44 50 60 50C76 50 89 69 97 100" fill="none" stroke="#C3E6FF" stroke-width="10" stroke-linecap="round" opacity="0.95"/>
+  <path d="M35 100V85M48 100V71M60 100V64M72 100V71M85 100V85" stroke="#12365D" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="23" cy="100" r="6" fill="#35C8D3" stroke="#1B7FE7" stroke-width="5"/>
+  <circle cx="97" cy="100" r="6" fill="#35C8D3" stroke="#1B7FE7" stroke-width="5"/>
+  <path d="M60 20C82 20 98 37 98 60C98 72 93 81 87 89C83 94 82 99 82 104H38C38 99 37 94 33 89C27 81 22 72 22 60C22 37 38 20 60 20Z" fill="#34C7D0"/>
+  <path d="M52 23L48 14" stroke="#1698A5" stroke-width="5" stroke-linecap="round"/>
+  <path d="M68 23L72 14" stroke="#1698A5" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="48" cy="48" r="5" fill="#102F54"/>
+  <circle cx="73" cy="48" r="5" fill="#102F54"/>
+  <circle cx="46" cy="46" r="2" fill="#FFFFFF"/>
+  <circle cx="71" cy="46" r="2" fill="#FFFFFF"/>
+  <path d="M50 66C55 71 65 71 70 66" fill="none" stroke="#102F54" stroke-width="4" stroke-linecap="round"/>
+    </g>
+    <text x="18" y="148" font-family="Segoe UI, Microsoft JhengHei, sans-serif" font-size="16" font-weight="700" fill="#0E4C92">09</text>
+    <text x="50" y="148" font-family="Segoe UI, Microsoft JhengHei, sans-serif" font-size="14" fill="#51738A">Chunky arch backdrop</text>
+  </g>
+  <g transform="translate(920,330)">
+    <rect width="180" height="170" rx="24" fill="#FFFFFF" stroke="#D6EAF5"/>
+    <g transform="translate(30,18)">
+  <path d="M11 98C23 57 40 34 60 34C80 34 97 57 109 98" fill="none" stroke="#2186EA" stroke-width="12" stroke-linecap="round"/>
+  <path d="M22 98C31 70 44 55 60 55C76 55 89 70 98 98" fill="none" stroke="#B6E0FF" stroke-width="8" stroke-linecap="round" opacity="0.95"/>
+  <path d="M35 98V84M48 98V74M60 98V69M72 98V74M85 98V84" stroke="#12365D" stroke-width="5" stroke-linecap="round"/>
+  <path d="M60 19C82 19 98 36 98 59C98 71 94 80 87 89C83 94 82 99 82 104H38C38 99 37 94 33 89C26 80 22 71 22 59C22 36 38 19 60 19Z" fill="#33C6CF"/>
+  <path d="M52 22L48 14" stroke="#1597A4" stroke-width="5" stroke-linecap="round"/>
+  <path d="M68 22L72 14" stroke="#1597A4" stroke-width="5" stroke-linecap="round"/>
+  <path d="M41 33C51 27 69 27 79 33" fill="none" stroke="#8EF2EA" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="48" cy="47" r="5" fill="#102F54"/>
+  <circle cx="73" cy="47" r="5" fill="#102F54"/>
+  <circle cx="46" cy="45" r="2" fill="#FFFFFF"/>
+  <circle cx="71" cy="45" r="2" fill="#FFFFFF"/>
+  <path d="M50 65C55 70 65 70 70 65" fill="none" stroke="#102F54" stroke-width="4" stroke-linecap="round"/>
+    </g>
+    <text x="18" y="148" font-family="Segoe UI, Microsoft JhengHei, sans-serif" font-size="16" font-weight="700" fill="#0E4C92">10</text>
+    <text x="50" y="148" font-family="Segoe UI, Microsoft JhengHei, sans-serif" font-size="14" fill="#51738A">Halo bridge backdrop</text>
+  </g>
+</svg>

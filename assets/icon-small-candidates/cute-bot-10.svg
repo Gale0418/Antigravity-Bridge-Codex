@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+@{Name=cute-bot-10; Title=Sleepy Cute; Body=  <path d="M30 18H90C100 18 108 26 108 36V84C108 96 99 104 87 104H33C21 104 12 95 12 83V36C12 26 20 18 30 18Z" fill="#115487"/>
+  <path d="M24 82C32 66 46 57 60 57C74 57 88 66 96 82" fill="none" stroke="#8FEDE1" stroke-width="9" stroke-linecap="round"/>
+  <path d="M38 82H82" stroke="#8FEDE1" stroke-width="8" stroke-linecap="round"/>
+  <path d="M48 28L44 18" stroke="#FFF8ED" stroke-width="6" stroke-linecap="round"/>
+  <path d="M72 28L76 18" stroke="#FFF8ED" stroke-width="6" stroke-linecap="round"/>
+  <rect x="41" y="30" width="38" height="30" rx="14" fill="#FFF9EE"/>
+  <path d="M51 42C53 39 56 39 58 42" fill="none" stroke="#115487" stroke-width="3.5" stroke-linecap="round"/>
+  <circle cx="67" cy="42" r="3.5" fill="#115487"/>
+  <path d="M53 50C56 53 64 53 67 50" fill="none" stroke="#115487" stroke-width="3.5" stroke-linecap="round"/>
+  <rect x="47" y="64" width="26" height="15" rx="8" fill="#FFF9EE"/>}.Body
+</svg>

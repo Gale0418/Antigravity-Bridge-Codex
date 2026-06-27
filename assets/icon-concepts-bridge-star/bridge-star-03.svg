@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+@{Name=bridge-star-03; Title=Covered chunky; Body=  <path d="M19 100C34 54 51 32 70 32C87 32 101 54 114 100" fill="none" stroke="#1D80E6" stroke-width="14" stroke-linecap="round"/>
+  <path d="M27 100H106" stroke="#1D80E6" stroke-width="9" stroke-linecap="round"/>
+  <path d="M40 100V83M55 100V71M69 100V59M83 100V71M97 100V83" stroke="#12355D" stroke-width="5" stroke-linecap="round"/>
+  <path d="M38 6L51 32L77 45L51 58L38 84L25 58L-1 45L25 32Z" fill="#FFC857"/>}.Body
+</svg>

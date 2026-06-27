@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+@{Name=robot-bridge-02; Title=Bean buddy; Body=  <rect x="10" y="10" width="100" height="100" rx="30" fill="#F4FBFF"/>
+  <path d="M20 87C30 68 44 59 60 59C76 59 90 68 100 87" fill="none" stroke="#22B8AA" stroke-width="10" stroke-linecap="round"/>
+  <path d="M36 87H84" stroke="#22B8AA" stroke-width="8" stroke-linecap="round"/>
+  <path d="M49 33L45 24" stroke="#22B8AA" stroke-width="6" stroke-linecap="round"/>
+  <path d="M71 33L75 24" stroke="#3C92FF" stroke-width="6" stroke-linecap="round"/>
+  <path d="M40 36C40 29 46 24 53 24H67C74 24 80 29 80 36V50C80 58 74 64 66 64H54C46 64 40 58 40 50Z" fill="#FFFFFF" stroke="#184A86" stroke-width="4"/>
+  <circle cx="54" cy="45" r="3.5" fill="#184A86"/>
+  <circle cx="66" cy="45" r="3.5" fill="#184A86"/>
+  <path d="M53 54C56 57 64 57 67 54" fill="none" stroke="#184A86" stroke-width="3.5" stroke-linecap="round"/>
+  <rect x="47" y="64" width="26" height="16" rx="8" fill="#8AE5DE" stroke="#184A86" stroke-width="4"/>
+  <path d="M42 70L48 72" stroke="#184A86" stroke-width="5" stroke-linecap="round"/>
+  <path d="M72 72L78 68" stroke="#184A86" stroke-width="5" stroke-linecap="round"/>
+  <path d="M55 80L52 89" stroke="#184A86" stroke-width="5" stroke-linecap="round"/>
+  <path d="M65 80L68 89" stroke="#184A86" stroke-width="5" stroke-linecap="round"/>}.Body
+</svg>

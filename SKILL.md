@@ -38,9 +38,11 @@ Follow this order:
    - collaborative chat
 5. If starting a fresh collaborative chat, send the intro only once on the first turn.
 6. Use the file handoff rule before file-related collaboration: if the exact files are known, give Gemini the file paths; if the exact files are not locked yet, name the expected file area or candidate files; only skip file handoff for pure discussion with no current local artifact.
-7. Default to Gemini for large writing or bulk-edit work: give Gemini the direction, scope boundaries, file paths, and acceptance checks first, then let Gemini produce the first pass.
-8. Let Codex stay in the supervisor role: narrow the scope when Gemini drifts, remind Gemini of constraints, and perform the final review or spot-fixes.
-9. Inspect Gemini's actual reply or artifacts before telling the user anything is done.
+7. If the user explicitly authorizes whole-workspace inspection, say that clearly to Gemini: this is the user's local workspace on the same machine through a locally logged-in Antigravity session, and Gemini should inspect the named workspace root locally, summarize the relevant areas first, then narrow down to the files that matter.
+8. Default to the lowest Codex-token path: for large writing, bulk-edit work, or brainstorming, give Gemini only the high-level direction, scope boundaries, file paths, and acceptance checks first, then let Gemini produce the first pass.
+9. Let Codex stay in the supervisor role: narrow the scope when Gemini drifts, remind Gemini of constraints, and perform the final review.
+10. If the remaining task is small, localized, or faster to fix directly than to delegate, Codex may apply the edit itself instead of sending Gemini another turn.
+11. Inspect Gemini's actual reply or artifacts before telling the user anything is done.
 
 ## Operating Modes
 
@@ -92,9 +94,10 @@ When the conversation is about files in the workspace, do not make Gemini guess.
 
 - if the exact files are already known, list the file paths and ask Gemini to inspect them first
 - if the exact files are not locked yet, say that clearly and name the expected file area, candidate files, or document surfaces before asking for suggestions
+- if the user has explicitly authorized a full-workspace inspection, name the workspace root, say that the inspection is for the same local machine through the locally logged-in Antigravity session, and ask Gemini to summarize the relevant areas before diving into specific files
 - only treat it as pure discussion when there is no current local artifact to inspect
 
-Gemini is often smart and imaginative, but can also miss details or forget part of the scope. Restate the current file set or expected file area, goal, and acceptance checks whenever precision matters.
+Gemini is often smart and imaginative, but can also miss details or forget part of the scope. Give Gemini the big direction, current file set or expected file area, goal, and acceptance checks, and when the user explicitly authorized whole-workspace inspection, say that the workspace is local to the same machine and ask for a summary-first pass before drilling into files. Then inspect the actual result carefully whenever precision matters.
 
 Use `references/collaboration-playbook.md` for the intro style, turn-taking pattern, and improvised follow-up rules.
 

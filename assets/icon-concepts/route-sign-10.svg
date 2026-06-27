@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+@{Name=route-sign-10; Title=Beacon post sign; Body=  <path d="M30 18H90C100 18 108 26 108 36V68C108 78 100 86 90 86H68L60 104L52 86H30C20 86 12 78 12 68V36C12 26 20 18 30 18Z" fill="#115487"/>
+  <path d="M24 68C31 56 44 48 60 48C76 48 89 56 96 68" fill="none" stroke="#8FEDE1" stroke-width="9" stroke-linecap="round"/>
+  <path d="M38 68H82" stroke="#8FEDE1" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="60" cy="39" r="7" fill="#FFF9EC"/>
+  <path d="M60 46V59" stroke="#FFF9EC" stroke-width="8" stroke-linecap="round"/>
+  <path d="M48 55L60 47L72 55" fill="none" stroke="#FFF9EC" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M52 77L60 65L68 77" fill="none" stroke="#FFD166" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>}.Body
+</svg>

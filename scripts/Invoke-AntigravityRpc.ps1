@@ -21,9 +21,7 @@ function ConvertTo-AntigravityFileUri {
     )
 
     $resolved = [System.IO.Path]::GetFullPath($Path)
-    $driveLetter = $resolved.Substring(0, 1).ToLowerInvariant()
-    $remainder = $resolved.Substring(2).Replace('\', '/')
-    return "file:///${driveLetter}:$remainder"
+    return [System.Uri]::new($resolved).AbsoluteUri
 }
 
 function Get-AntigravityHeaders {
@@ -222,5 +220,5 @@ function Wait-AntigravityTrajectoryMatch {
         Start-Sleep -Seconds $PollIntervalSeconds
     } while ((Get-Date) -lt $deadline)
 
-    return $lastTrajectory
+    throw "Timed out waiting for pattern $Pattern in cascade $CascadeId"
 }

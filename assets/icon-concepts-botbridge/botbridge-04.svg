@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+@{Name=botbridge-04; Title=Chat belly backdrop; Body=  <path d="M10 98C22 57 39 34 60 34C81 34 98 57 110 98" fill="none" stroke="#2187EB" stroke-width="12" stroke-linecap="round"/>
+  <path d="M21 98C31 70 44 55 60 55C76 55 89 70 99 98" fill="none" stroke="#B6E0FF" stroke-width="8" stroke-linecap="round" opacity="0.95"/>
+  <path d="M35 98V84M48 98V74M60 98V69M72 98V74M85 98V84" stroke="#123760" stroke-width="5" stroke-linecap="round"/>
+  <path d="M60 19C82 19 98 36 98 59C98 71 94 81 87 90C83 94 82 99 82 104H38C38 99 37 94 33 90C26 81 22 71 22 59C22 36 38 19 60 19Z" fill="#36C8D3"/>
+  <path d="M51 22L47 14" stroke="#1697A8" stroke-width="5" stroke-linecap="round"/>
+  <path d="M69 22L73 14" stroke="#1697A8" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="48" cy="47" r="5" fill="#102F54"/>
+  <circle cx="73" cy="47" r="5" fill="#102F54"/>
+  <circle cx="46" cy="45" r="2" fill="#FFFFFF"/>
+  <circle cx="71" cy="45" r="2" fill="#FFFFFF"/>
+  <path d="M50 65C55 70 65 70 70 65" fill="none" stroke="#102F54" stroke-width="4" stroke-linecap="round"/>
+  <path d="M47 75H73C77 75 80 78 80 82V88C80 92 77 95 73 95H60L54 99V95H47C43 95 40 92 40 88V82C40 78 43 75 47 75Z" fill="#E8FFFF"/>
+  <path d="M48 85H72" stroke="#1BA7B8" stroke-width="4" stroke-linecap="round"/>}.Body
+</svg>

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+@{Name=botbridge-05; Title=Code belly backdrop; Body=  <path d="M12 98C24 58 40 35 60 35C80 35 96 58 108 98" fill="none" stroke="#1F84E8" stroke-width="12" stroke-linecap="round"/>
+  <path d="M23 98C32 71 44 56 60 56C76 56 88 71 97 98" fill="none" stroke="#AFDDFF" stroke-width="8" stroke-linecap="round" opacity="0.95"/>
+  <path d="M34 98V84M47 98V74M60 98V69M73 98V74M86 98V84" stroke="#12365B" stroke-width="5" stroke-linecap="round"/>
+  <path d="M60 18C82 18 98 35 98 58C98 71 93 80 86 88C83 92 82 97 82 104H38C38 97 37 92 34 88C27 80 22 71 22 58C22 35 38 18 60 18Z" fill="#34C7D0"/>
+  <path d="M52 21L48 12" stroke="#169AA7" stroke-width="5" stroke-linecap="round"/>
+  <path d="M68 21L72 12" stroke="#169AA7" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="48" cy="46" r="5" fill="#102F54"/>
+  <circle cx="73" cy="46" r="5" fill="#102F54"/>
+  <circle cx="46" cy="44" r="2" fill="#FFFFFF"/>
+  <circle cx="71" cy="44" r="2" fill="#FFFFFF"/>
+  <path d="M50 64C55 69 65 69 70 64" fill="none" stroke="#102F54" stroke-width="4" stroke-linecap="round"/>
+  <rect x="46" y="74" width="28" height="16" rx="6" fill="#E9FFFF"/>
+  <path d="M52 82L57 79L52 76" fill="none" stroke="#1A9FB1" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M68 82L63 79L68 76" fill="none" stroke="#1A9FB1" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M60 76L58 82" stroke="#1A9FB1" stroke-width="3.5" stroke-linecap="round"/>}.Body
+</svg>

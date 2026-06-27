@@ -77,6 +77,24 @@ function Get-AntigravitySessionInfoFromText {
     }
 }
 
+
+function ConvertTo-AntigravitySessionPublicInfo {
+    param(
+        [Parameter(Mandatory = $true)]
+        [psobject]$Session,
+
+        [switch]$ShowSecret
+    )
+
+    [pscustomobject]@{
+        LocalUrl = $Session.LocalUrl
+        HttpsPort = $Session.HttpsPort
+        HttpPort = $Session.HttpPort
+        ProcessId = $Session.ProcessId
+        CsrfToken = $(if ($ShowSecret) { $Session.CsrfToken } else { '<redacted>' })
+    }
+}
+
 function Get-AntigravitySessionInfo {
     param(
         [string]$MainLogPath = (Join-Path $env:APPDATA 'Antigravity\logs\main.log'),

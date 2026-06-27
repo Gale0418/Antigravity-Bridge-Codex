@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+@{Name=cute-bot-06; Title=Chat Chest; Body=  <circle cx="60" cy="60" r="50" fill="#0E4C92"/>
+  <path d="M26 83C34 66 46 57 60 57C74 57 86 66 94 83" fill="none" stroke="#72E2D8" stroke-width="10" stroke-linecap="round"/>
+  <path d="M39 83H81" stroke="#72E2D8" stroke-width="8" stroke-linecap="round"/>
+  <path d="M48 27L44 18" stroke="#FFF8EE" stroke-width="6" stroke-linecap="round"/>
+  <path d="M72 27L76 18" stroke="#FFF8EE" stroke-width="6" stroke-linecap="round"/>
+  <rect x="41" y="28" width="38" height="31" rx="15" fill="#FFF9EE"/>
+  <circle cx="54" cy="42" r="3.5" fill="#0E4C92"/>
+  <circle cx="66" cy="42" r="3.5" fill="#0E4C92"/>
+  <path d="M53 50C56 53 64 53 67 50" fill="none" stroke="#0E4C92" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M47 64H73V77H55L50 82V77H47Z" fill="#FFF9EE"/>
+  <path d="M54 70H66" stroke="#0E4C92" stroke-width="3.5" stroke-linecap="round"/>}.Body
+</svg>

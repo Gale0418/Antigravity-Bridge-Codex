@@ -34,8 +34,10 @@ Rules:
 Default split:
 
 - Gemini does the main writing, drafting, or first-pass editing
+- prefer the lowest Codex-token path: if the task needs lots of writing, repeated edits, or brainstorming, give Gemini only the high-level direction first and let Gemini draft
 - for large writing tasks, long drafts, or many similar edits, Gemini should own the bulk-writing pass after Codex gives direction, scope boundaries, file paths, and acceptance checks
 - Codex defines scope, reminds Gemini of file context and constraints, and performs the acceptance review
+- if the remaining change is tiny, localized, or quicker to do directly than to delegate, Codex can patch it without spending another Gemini turn
 - Codex should take over direct writing only when Gemini is blocked, drifting, or when review would take longer than fixing the issue directly
 
 ## Improvisation Rule
@@ -57,19 +59,22 @@ Rules:
 
 - if the exact files are known, list the exact file paths that are currently being changed or reviewed
 - if the exact files are not locked yet, say that explicitly and name the expected file area, candidate files, or content surfaces
+- if the user explicitly authorizes whole-workspace inspection, name the workspace root, say that Gemini is inspecting the user's local workspace on the same machine through the locally logged-in Antigravity session, and ask for a summary-first pass before drilling into file-level edits
 - only skip file handoff when the task is genuinely pure discussion with no current local artifact to inspect
 - name the workspace root when it matters
 - ask Gemini to read the named files or inspect the named area first and summarize what it sees before proposing edits
-- keep the file list tight; do not dump the whole repo when only one or two files matter
+- keep the file list tight when possible; for a full-workspace pass, ask for a short map of relevant areas first instead of dumping raw contents
 - restate the goal and acceptance checks when precision matters, because Gemini is often smart and imaginative but can still forget details or drop part of the scope
 
 Good:
 - `Please inspect D:\MyGame\antigravity-bridge-codex\SKILL.md and D:\MyGame\antigravity-bridge-codex\references\collaboration-playbook.md first, then tell me what you think should change.`
 - `The exact file is not locked yet. This likely lives in the add-reminder screen copy and TTS wording files under D:\MyGame\little-bear-reminder. Please inspect that area first and tell me which files look relevant before proposing copy changes.`
+- `The user explicitly authorized a full-workspace pass. Please inspect D:\MyGame\antigravity-bridge-codex on this same local machine through the locally logged-in Antigravity session, give me a short map of the most relevant areas for monetization and future roadmap discussion, then we will narrow to the specific files.`
 
 Bad:
 - `Help me improve the skill.`
 - `Please fix whatever looks wrong in the repo.`
+- `Read the whole workspace.`
 - `Here is the product idea.`
 
 ## Markers
@@ -96,6 +101,7 @@ Gemini can generate strong ideas quickly, but sometimes skips a file, forgets a 
 To reduce that risk:
 
 - restate the in-scope files before asking for edits
+- treat Gemini as smart but forgetful: do not spend extra Codex tokens prewriting the whole draft; give the goal, file paths, constraints, and acceptance checks first, and for a user-approved full-workspace pass ask for a concise area summary before file-level work
 - for heavy writing, give Gemini only the high-level direction, scope boundaries, file paths, and acceptance checks instead of drafting the whole thing in Codex first
 - repeat the acceptance checks before final implementation passes
 - if Gemini proposes a wide change, narrow the scope again before approving it

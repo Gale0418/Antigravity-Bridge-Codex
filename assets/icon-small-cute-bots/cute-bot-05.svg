@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+@{Name=cute-bot-05; Title=愛心版; Body=  <path d="M20 88C30 68 45 60 60 60C75 60 90 68 100 88" fill="none" stroke="#18B9B0" stroke-width="10" stroke-linecap="round"/>
+  <path d="M34 88H86" stroke="#3A91F3" stroke-width="7" stroke-linecap="round"/>
+  <path d="M10 56C10 39 23 26 38 26C46 26 53 29 57 35C61 29 68 26 77 26C92 26 104 39 104 56C104 71 92 83 77 83H37C22 83 10 71 10 56Z" fill="#1CC7BE"/>
+  <path d="M44 26C52 26 59 29 63 35C67 29 74 26 83 26C98 26 110 39 110 56C110 71 98 83 83 83H68C79 83 88 72 88 59C88 45 77 35 63 35C54 35 46 40 42 48C38 40 30 35 21 35C19 35 17 35 15 36C20 30 27 26 35 26H44Z" fill="#3A91F3"/>
+  <ellipse cx="32" cy="53" rx="16" ry="14" fill="#FFFDF8"/><ellipse cx="81" cy="53" rx="16" ry="14" fill="#FFFDF8"/>
+  <circle cx="28" cy="52" r="3.2" fill="#0A2B5E"/><path d="M36 57C39 60 44 60 47 57" fill="none" stroke="#0A2B5E" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="77" cy="52" r="3.2" fill="#0A2B5E"/><path d="M85 57C88 60 93 60 96 57" fill="none" stroke="#0A2B5E" stroke-width="3" stroke-linecap="round"/>
+  <path d="M22 28L18 19" stroke="#1CC7BE" stroke-width="5" stroke-linecap="round"/><circle cx="16" cy="16" r="4" fill="#1CC7BE"/>
+  <path d="M96 28L100 19" stroke="#3A91F3" stroke-width="5" stroke-linecap="round"/><circle cx="102" cy="16" r="4" fill="#3A91F3"/>
+  <path d="M56 16C60 11 66 11 70 16L63 23Z" fill="#FFC43A"/>}.Body
+</svg>

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+@{Name=robot-bridge-09; Title=Soft capsule; Body=  <path d="M14 34C14 20 26 10 40 10H80C94 10 106 20 106 34V86C106 100 94 110 80 110H40C26 110 14 100 14 86Z" fill="#F4FBFF"/>
+  <path d="M18 88C28 67 42 58 60 58C78 58 92 67 102 88" fill="none" stroke="#1BB1AA" stroke-width="10" stroke-linecap="round"/>
+  <path d="M34 88H86" stroke="#1BB1AA" stroke-width="8" stroke-linecap="round"/>
+  <path d="M50 30L46 22" stroke="#1BB1AA" stroke-width="6" stroke-linecap="round"/>
+  <path d="M70 30L74 22" stroke="#3B8FFF" stroke-width="6" stroke-linecap="round"/>
+  <rect x="42" y="32" width="36" height="28" rx="14" fill="#FFFFFF" stroke="#184881" stroke-width="4"/>
+  <circle cx="54" cy="45" r="3.3" fill="#184881"/>
+  <circle cx="66" cy="45" r="3.3" fill="#184881"/>
+  <path d="M53 53C56 57 64 57 67 53" fill="none" stroke="#184881" stroke-width="3.5" stroke-linecap="round"/>
+  <rect x="47" y="62" width="26" height="18" rx="9" fill="#7FE7DE" stroke="#184881" stroke-width="4"/>
+  <path d="M42 69L48 72" stroke="#184881" stroke-width="5" stroke-linecap="round"/>
+  <path d="M72 72L78 68" stroke="#184881" stroke-width="5" stroke-linecap="round"/>
+  <path d="M55 80L52 89" stroke="#184881" stroke-width="5" stroke-linecap="round"/>
+  <path d="M65 80L68 89" stroke="#184881" stroke-width="5" stroke-linecap="round"/>}.Body
+</svg>

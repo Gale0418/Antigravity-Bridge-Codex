@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+@{Name=qbot-08; Title=Free sweep bot; Body=  <path d="M18 84C30 62 44 52 60 52C76 52 90 62 102 84" fill="none" stroke="#0E4C92" stroke-width="12" stroke-linecap="round"/>
+  <path d="M34 84H86" stroke="#20B2AA" stroke-width="9" stroke-linecap="round"/>
+  <path d="M50 28L46 18" stroke="#0E4C92" stroke-width="6" stroke-linecap="round"/>
+  <path d="M70 28L74 18" stroke="#0E4C92" stroke-width="6" stroke-linecap="round"/>
+  <rect x="44" y="30" width="32" height="24" rx="11" fill="#FFF9ED" stroke="#0E4C92" stroke-width="6"/>
+  <circle cx="54" cy="40" r="3" fill="#0E4C92"/>
+  <circle cx="66" cy="40" r="3" fill="#0E4C92"/>
+  <path d="M53 47C56 50 64 50 67 47" fill="none" stroke="#0E4C92" stroke-width="3" stroke-linecap="round"/>
+  <rect x="49" y="56" width="22" height="15" rx="7" fill="#FFF9ED" stroke="#0E4C92" stroke-width="6"/>
+  <path d="M44 62L50 64" stroke="#0E4C92" stroke-width="6" stroke-linecap="round"/>
+  <path d="M70 63L76 58" stroke="#0E4C92" stroke-width="6" stroke-linecap="round"/>
+  <path d="M55 71L52 80" stroke="#0E4C92" stroke-width="6" stroke-linecap="round"/>
+  <path d="M65 71L68 80" stroke="#0E4C92" stroke-width="6" stroke-linecap="round"/>}.Body
+</svg>

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+@{Name=qbot-04; Title=Pill sign bot; Body=  <rect x="18" y="10" width="84" height="100" rx="28" fill="#0F5D8F"/>
+  <path d="M27 79C35 62 47 54 60 54C73 54 85 62 93 79" fill="none" stroke="#88EBDD" stroke-width="9" stroke-linecap="round"/>
+  <path d="M40 79H80" stroke="#88EBDD" stroke-width="8" stroke-linecap="round"/>
+  <path d="M50 28L46 18" stroke="#FFF4DA" stroke-width="6" stroke-linecap="round"/>
+  <path d="M70 28L74 18" stroke="#FFF4DA" stroke-width="6" stroke-linecap="round"/>
+  <rect x="44" y="30" width="32" height="24" rx="12" fill="#FFF9EF"/>
+  <circle cx="54" cy="40" r="3" fill="#0F5D8F"/>
+  <circle cx="66" cy="40" r="3" fill="#0F5D8F"/>
+  <path d="M53 47C56 50 64 50 67 47" fill="none" stroke="#0F5D8F" stroke-width="3" stroke-linecap="round"/>
+  <rect x="49" y="56" width="22" height="15" rx="7" fill="#FFF9EF"/>
+  <path d="M44 62L50 64" stroke="#FFF9EF" stroke-width="6" stroke-linecap="round"/>
+  <path d="M70 63L76 58" stroke="#FFF9EF" stroke-width="6" stroke-linecap="round"/>
+  <path d="M55 71L52 80" stroke="#FFF9EF" stroke-width="6" stroke-linecap="round"/>
+  <path d="M65 71L68 80" stroke="#FFF9EF" stroke-width="6" stroke-linecap="round"/>}.Body
+</svg>

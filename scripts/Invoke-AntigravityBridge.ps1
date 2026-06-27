@@ -20,7 +20,8 @@ param(
     [string]$CascadeId,
 
     # Specific to trajectory
-    [int]$Verbosity = 2
+    [int]$Verbosity = 2,
+    [switch]$ShowSecret
 )
 
 $ErrorActionPreference = 'Stop'
@@ -37,7 +38,8 @@ function Get-ConversationIntro {
 
 switch ($Action) {
     'discover' {
-        Get-AntigravitySessionInfo | ConvertTo-Json -Depth 5
+        $session = Get-AntigravitySessionInfo
+        ConvertTo-AntigravitySessionPublicInfo -Session $session -ShowSecret:$ShowSecret | ConvertTo-Json -Depth 5
     }
     'matrix' {
         if ($DryRun) {

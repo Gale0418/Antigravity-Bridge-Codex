@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+@{Name=route-sign-06; Title=Twin arch sign; Body=  <rect x="14" y="14" width="92" height="92" rx="24" fill="#105E8B"/>
+  <path d="M22 77C29 62 40 54 52 54C57 54 62 55 66 58C70 55 75 54 80 54C91 54 100 62 106 77" fill="none" stroke="#92F2E6" stroke-width="8" stroke-linecap="round"/>
+  <path d="M35 77H85" stroke="#92F2E6" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="60" cy="40" r="7" fill="#FFF9EF"/>
+  <path d="M60 47V64" stroke="#FFF9EF" stroke-width="8" stroke-linecap="round"/>
+  <path d="M47 58L60 49L73 58" fill="none" stroke="#FFF9EF" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M51 82L60 69L69 82" fill="none" stroke="#FFC857" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>}.Body
+</svg>

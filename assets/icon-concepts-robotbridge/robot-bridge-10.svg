@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+@{Name=robot-bridge-10; Title=Sunny helper; Body=  <circle cx="60" cy="60" r="50" fill="#F8FCFF"/>
+  <path d="M18 88C28 66 42 56 60 56C78 56 92 66 102 88" fill="none" stroke="#1AB3AA" stroke-width="10" stroke-linecap="round"/>
+  <path d="M34 88H86" stroke="#1AB3AA" stroke-width="8" stroke-linecap="round"/>
+  <path d="M50 31L46 23" stroke="#1AB3AA" stroke-width="6" stroke-linecap="round"/>
+  <path d="M70 31L74 23" stroke="#4090FF" stroke-width="6" stroke-linecap="round"/>
+  <rect x="42" y="33" width="36" height="27" rx="13" fill="#FFFFFF" stroke="#16497E" stroke-width="4"/>
+  <circle cx="54" cy="45" r="3.4" fill="#16497E"/>
+  <circle cx="66" cy="45" r="3.4" fill="#16497E"/>
+  <path d="M53 53C56 57 64 57 67 53" fill="none" stroke="#16497E" stroke-width="3.5" stroke-linecap="round"/>
+  <rect x="47" y="62" width="26" height="18" rx="9" fill="#8DE6DE" stroke="#16497E" stroke-width="4"/>
+  <path d="M42 69L48 72" stroke="#16497E" stroke-width="5" stroke-linecap="round"/>
+  <path d="M72 72L78 68" stroke="#16497E" stroke-width="5" stroke-linecap="round"/>
+  <path d="M55 80L52 88" stroke="#16497E" stroke-width="5" stroke-linecap="round"/>
+  <path d="M65 80L68 88" stroke="#16497E" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="90" cy="28" r="6" fill="#FFC94D"/>}.Body
+</svg>

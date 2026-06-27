@@ -1,0 +1,4 @@
+reviews:
+  ignore_patterns:
+    - "tests/**"
+    - "MissionCenter/**"

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+@{Name=qbot-07; Title=Suspension bot; Body=  <path d="M20 18H100V102H20C14 102 10 98 10 92V28C10 22 14 18 20 18Z" fill="#145585"/>
+  <path d="M30 74H90" stroke="#8FE9DD" stroke-width="7" stroke-linecap="round"/>
+  <path d="M38 74C44 62 52 56 60 56C68 56 76 62 82 74" fill="none" stroke="#8FE9DD" stroke-width="8" stroke-linecap="round"/>
+  <path d="M42 42V74M78 42V74" stroke="#8FE9DD" stroke-width="7" stroke-linecap="round"/>
+  <path d="M50 28L46 17" stroke="#FFF4DB" stroke-width="6" stroke-linecap="round"/>
+  <path d="M70 28L74 17" stroke="#FFF4DB" stroke-width="6" stroke-linecap="round"/>
+  <rect x="44" y="30" width="32" height="24" rx="11" fill="#FFF9EE"/>
+  <circle cx="54" cy="40" r="3" fill="#145585"/>
+  <circle cx="66" cy="40" r="3" fill="#145585"/>
+  <path d="M53 47C56 50 64 50 67 47" fill="none" stroke="#145585" stroke-width="3" stroke-linecap="round"/>
+  <rect x="49" y="56" width="22" height="14" rx="7" fill="#FFF9EE"/>
+  <path d="M44 62L50 64" stroke="#FFF9EE" stroke-width="6" stroke-linecap="round"/>
+  <path d="M70 63L76 58" stroke="#FFF9EE" stroke-width="6" stroke-linecap="round"/>}.Body
+</svg>

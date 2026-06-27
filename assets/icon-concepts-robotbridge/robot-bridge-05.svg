@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+@{Name=robot-bridge-05; Title=Spark buddy; Body=  <circle cx="60" cy="60" r="50" fill="#F7FCFF"/>
+  <path d="M18 87C27 67 43 58 60 58C77 58 93 67 102 87" fill="none" stroke="#1AB7B0" stroke-width="10" stroke-linecap="round"/>
+  <path d="M34 87H86" stroke="#1AB7B0" stroke-width="8" stroke-linecap="round"/>
+  <path d="M50 33L46 24" stroke="#1AB7B0" stroke-width="6" stroke-linecap="round"/>
+  <path d="M70 33L74 24" stroke="#4190FF" stroke-width="6" stroke-linecap="round"/>
+  <rect x="42" y="35" width="36" height="26" rx="13" fill="#FFFFFF" stroke="#174A84" stroke-width="4"/>
+  <circle cx="54" cy="46" r="3.4" fill="#174A84"/>
+  <circle cx="66" cy="46" r="3.4" fill="#174A84"/>
+  <path d="M53 54C56 57 64 57 67 54" fill="none" stroke="#174A84" stroke-width="3.5" stroke-linecap="round"/>
+  <rect x="47" y="63" width="26" height="17" rx="8.5" fill="#8CEAE2" stroke="#174A84" stroke-width="4"/>
+  <path d="M42 70L48 72" stroke="#174A84" stroke-width="5" stroke-linecap="round"/>
+  <path d="M72 72L78 68" stroke="#174A84" stroke-width="5" stroke-linecap="round"/>
+  <path d="M55 80L52 88" stroke="#174A84" stroke-width="5" stroke-linecap="round"/>
+  <path d="M65 80L68 88" stroke="#174A84" stroke-width="5" stroke-linecap="round"/>
+  <path d="M88 28L91 34L97 37L91 40L88 46L85 40L79 37L85 34Z" fill="#FFC94D"/>}.Body
+</svg>

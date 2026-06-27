@@ -36,4 +36,15 @@ if ($session.LocalUrl -ne 'https://127.0.0.1:50608/') {
     throw "Expected local url to parse, got '$($session.LocalUrl)'"
 }
 
+
+$publicSession = ConvertTo-AntigravitySessionPublicInfo -Session $session
+if ($publicSession.CsrfToken -ne '<redacted>') {
+    throw "Expected csrf token to be redacted, got '$($publicSession.CsrfToken)'"
+}
+
+$secretSession = ConvertTo-AntigravitySessionPublicInfo -Session $session -ShowSecret
+if ($secretSession.CsrfToken -ne $session.CsrfToken) {
+    throw 'Expected ShowSecret to preserve csrf token'
+}
+
 Write-Host 'PASS: discovery parser fixtures look correct'

@@ -9,11 +9,33 @@ if ($trajectoryUri -ne 'http://127.0.0.1:50609/exa.language_server_pb.LanguageSe
 
 $tempPath = [System.IO.Path]::GetFullPath($env:TEMP)
 $workspaceUri = ConvertTo-AntigravityFileUri -Path $tempPath
-$driveLetter = $tempPath.Substring(0, 1).ToLowerInvariant()
-$remainder = $tempPath.Substring(2).Replace('\', '/')
-$expectedUri = "file:///${driveLetter}:$remainder"
+$expectedUri = [System.Uri]::new($tempPath).AbsoluteUri
 if ($workspaceUri -ne $expectedUri) {
     throw "Unexpected workspace uri: $workspaceUri expected: $expectedUri"
+}
+
+$encodedUri = ConvertTo-AntigravityFileUri -Path 'D:\My Game\測試#1.txt'
+if ($encodedUri -notmatch '%20' -or $encodedUri -notmatch '%23') {
+    throw "Expected encoded file uri, got '$encodedUri'"
+}
+
+function Get-AntigravityTrajectory {
+    param(
+        [string]$CascadeId,
+        [int]$Verbosity = 2,
+        [psobject]$Session
+    )
+
+    return [pscustomobject]@{ steps = @() }
+}
+
+try {
+    Wait-AntigravityTrajectoryMatch -CascadeId 'timeout-case' -Pattern 'READY' -TimeoutSeconds 0 -PollIntervalSeconds 0 -Session ([pscustomobject]@{}) | Out-Null
+    throw 'Expected timeout exception from Wait-AntigravityTrajectoryMatch'
+} catch {
+    if ($_.Exception.Message -notmatch 'Timed out waiting for pattern') {
+        throw "Unexpected timeout error: $($_.Exception.Message)"
+    }
 }
 
 Write-Host 'PASS: rpc helper values look correct'
