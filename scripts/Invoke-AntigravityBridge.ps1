@@ -63,15 +63,17 @@ switch ($Action) {
         }
 
         Send-AntigravityMessage -CascadeId $cascade.CascadeId -Text $message -Model $Model -Session $session | Out-Null
-        $trajectoryResult = Wait-AntigravityTrajectoryMatch -CascadeId $cascade.CascadeId -Pattern $WaitPattern -TimeoutSeconds 90 -Session $session
-        $response = Get-LatestAntigravityPlannerResponseText -Trajectory $trajectoryResult
-        $failure = Get-LatestAntigravityErrorText -Trajectory $trajectoryResult
+        $trajectoryOutcome = Wait-AntigravityTrajectoryOutcome -CascadeId $cascade.CascadeId -Pattern $WaitPattern -TimeoutSeconds 90 -Session $session
+        $response = $trajectoryOutcome.Response
+        $failure = $trajectoryOutcome.Failure
 
         [pscustomobject]@{
             action = 'start'
             cascadeId = $cascade.CascadeId
             workspacePath = $resolvedWorkspacePath
             introStyle = $(if ($NoIntro) { 'none' } else { $IntroStyle })
+            matched = $trajectoryOutcome.Matched
+            timeout = $trajectoryOutcome.TimedOut
             response = $response
             failure = $failure
         } | ConvertTo-Json -Depth 6
@@ -85,13 +87,15 @@ switch ($Action) {
         }
         $session = Get-AntigravitySessionInfo
         Send-AntigravityMessage -CascadeId $CascadeId -Text $Text -Model $Model -OmitRequestedModel:$OmitRequestedModel -Session $session | Out-Null
-        $trajectoryResult = Wait-AntigravityTrajectoryMatch -CascadeId $CascadeId -Pattern $WaitPattern -TimeoutSeconds 90 -Session $session
-        $response = Get-LatestAntigravityPlannerResponseText -Trajectory $trajectoryResult
-        $failure = Get-LatestAntigravityErrorText -Trajectory $trajectoryResult
+        $trajectoryOutcome = Wait-AntigravityTrajectoryOutcome -CascadeId $CascadeId -Pattern $WaitPattern -TimeoutSeconds 90 -Session $session
+        $response = $trajectoryOutcome.Response
+        $failure = $trajectoryOutcome.Failure
 
         [pscustomobject]@{
             action = 'send'
             cascadeId = $CascadeId
+            matched = $trajectoryOutcome.Matched
+            timeout = $trajectoryOutcome.TimedOut
             response = $response
             failure = $failure
         } | ConvertTo-Json -Depth 6

@@ -191,7 +191,7 @@ function Get-LatestAntigravityErrorText {
     )
 }
 
-function Wait-AntigravityTrajectoryMatch {
+function Wait-AntigravityTrajectoryOutcome {
     param(
         [Parameter(Mandatory = $true)]
         [string]$CascadeId,
@@ -206,19 +206,65 @@ function Wait-AntigravityTrajectoryMatch {
 
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
     $lastTrajectory = $null
+    $lastResponse = ''
+    $lastError = ''
+    $lastCombined = ''
 
     do {
         $lastTrajectory = Get-AntigravityTrajectory -CascadeId $CascadeId -Session $Session
-        $response = Get-LatestAntigravityPlannerResponseText -Trajectory $lastTrajectory
-        $errorText = Get-LatestAntigravityErrorText -Trajectory $lastTrajectory
-        $combined = @($response, $errorText) -join "`n"
+        $lastResponse = Get-LatestAntigravityPlannerResponseText -Trajectory $lastTrajectory
+        $lastError = Get-LatestAntigravityErrorText -Trajectory $lastTrajectory
+        $lastCombined = @($lastResponse, $lastError) -join "`n"
 
-        if ($combined -match $Pattern) {
-            return $lastTrajectory
+        if ($lastCombined -match $Pattern) {
+            return [pscustomobject]@{
+                CascadeId = $CascadeId
+                Pattern = $Pattern
+                Matched = $true
+                TimedOut = $false
+                Trajectory = $lastTrajectory
+                Response = $lastResponse
+                Failure = $lastError
+                ObservedText = $lastCombined
+            }
+        }
+
+        if ((Get-Date) -ge $deadline) {
+            break
         }
 
         Start-Sleep -Seconds $PollIntervalSeconds
-    } while ((Get-Date) -lt $deadline)
+    } while ($true)
+
+    return [pscustomobject]@{
+        CascadeId = $CascadeId
+        Pattern = $Pattern
+        Matched = $false
+        TimedOut = $true
+        Trajectory = $lastTrajectory
+        Response = $lastResponse
+        Failure = $lastError
+        ObservedText = $lastCombined
+    }
+}
+
+function Wait-AntigravityTrajectoryMatch {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$CascadeId,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Pattern,
+
+        [int]$TimeoutSeconds = 90,
+        [int]$PollIntervalSeconds = 3,
+        [psobject]$Session = (Get-AntigravitySessionInfo)
+    )
+
+    $outcome = Wait-AntigravityTrajectoryOutcome -CascadeId $CascadeId -Pattern $Pattern -TimeoutSeconds $TimeoutSeconds -PollIntervalSeconds $PollIntervalSeconds -Session $Session
+    if ($outcome.Matched) {
+        return $outcome.Trajectory
+    }
 
     throw "Timed out waiting for pattern $Pattern in cascade $CascadeId"
 }

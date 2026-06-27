@@ -1,10 +1,21 @@
 $ErrorActionPreference = 'Stop'
 
-$json = & "$PSScriptRoot\..\scripts\Run-AntigravityCapabilityMatrix.ps1" -WorkspacePath 'D:\MyGame' -DryRun
+$workspace = Join-Path $env:TEMP 'antigravity matrix dryrun'
+New-Item -ItemType Directory -Force -Path $workspace | Out-Null
+$resolvedWorkspace = (Resolve-Path -LiteralPath $workspace).Path
+$json = & "$PSScriptRoot\..\scripts\Run-AntigravityCapabilityMatrix.ps1" -WorkspacePath $workspace -DryRun
 $plan = $json | ConvertFrom-Json
 
-if ($plan.workspacePath -ne 'D:\MyGame') {
+if ($plan.workspacePath -ne $resolvedWorkspace) {
     throw "Unexpected workspace path: $($plan.workspacePath)"
+}
+
+$scriptText = Get-Content "$PSScriptRoot\..\scripts\Run-AntigravityCapabilityMatrix.ps1" -Raw
+if ($scriptText -match 'd:\\MyGame\|file:///d:/MyGame') {
+    throw 'Capability matrix still hardcodes D:\MyGame in workspace-awareness checks'
+}
+if ($scriptText -match '今天 2026-06-21') {
+    throw 'Capability matrix still uses conflicting 今天 wording in the fixed-date web probe'
 }
 
 $requiredIds = @(

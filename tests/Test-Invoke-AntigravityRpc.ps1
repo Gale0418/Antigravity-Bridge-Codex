@@ -38,4 +38,16 @@ try {
     }
 }
 
+try {
+    $timeoutResult = Wait-AntigravityTrajectoryOutcome -CascadeId 'timeout-case' -Pattern 'READY' -TimeoutSeconds 0 -PollIntervalSeconds 0 -Session ([pscustomobject]@{})
+    if (-not $timeoutResult.TimedOut) {
+        throw 'Expected timeout outcome to mark TimedOut = true'
+    }
+    if ($timeoutResult.Matched) {
+        throw 'Expected timeout outcome to leave Matched = false'
+    }
+} catch {
+    throw "Unexpected timeout outcome error: $($_.Exception.Message)"
+}
+
 Write-Host 'PASS: rpc helper values look correct'
