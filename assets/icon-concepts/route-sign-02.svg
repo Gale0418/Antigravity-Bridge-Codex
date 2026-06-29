@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
-@{Name=route-sign-02; Title=Hex sign; Body=  <path d="M34 14H86L108 60L86 106H34L12 60Z" fill="#125B9A"/>
-  <path d="M26 73C33 59 46 50 60 50C74 50 87 59 94 73" fill="none" stroke="#8AF0E4" stroke-width="9" stroke-linecap="round"/>
-  <path d="M37 73H83" stroke="#8AF0E4" stroke-width="8" stroke-linecap="round"/>
-  <circle cx="60" cy="40" r="7" fill="#FFF9EC"/>
-  <path d="M60 47V63" stroke="#FFF9EC" stroke-width="8" stroke-linecap="round"/>
-  <path d="M48 58L60 50L72 58" fill="none" stroke="#FFF9EC" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M52 80L60 68L68 80" fill="none" stroke="#FFC857" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>}.Body
-</svg>

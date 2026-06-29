@@ -1,5 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
-@{Name=bridge-star-07; Title=Pure overlap; Body=  <path d="M21 98C36 56 52 34 70 34C86 34 101 56 114 98" fill="none" stroke="#2083E9" stroke-width="13" stroke-linecap="round"/>
-  <path d="M29 98H107" stroke="#2083E9" stroke-width="9" stroke-linecap="round"/>
-  <path d="M36 2L49 28L75 40L49 52L36 78L23 52L-3 40L23 28Z" fill="#FFC857"/>}.Body
-</svg>

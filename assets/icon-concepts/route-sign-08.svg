@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
-@{Name=route-sign-08; Title=Independent sweep; Body=  <path d="M18 82C30 61 44 50 60 50C76 50 90 61 102 82" fill="none" stroke="#0E4C92" stroke-width="12" stroke-linecap="round"/>
-  <path d="M34 82H86" stroke="#20B2AA" stroke-width="9" stroke-linecap="round"/>
-  <circle cx="60" cy="40" r="8" fill="#0E4C92"/>
-  <path d="M60 48V64" stroke="#0E4C92" stroke-width="9" stroke-linecap="round"/>
-  <path d="M46 57L60 48L74 57" fill="none" stroke="#0E4C92" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M52 86L60 72L68 86" fill="none" stroke="#FFC857" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
-  <circle cx="24" cy="30" r="5" fill="#20B2AA"/>}.Body
-</svg>

@@ -1,6 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
-@{Name=bridge-star-09; Title=Maximum cover; Body=  <path d="M24 100C39 54 54 32 71 32C87 32 101 54 114 100" fill="none" stroke="#2385EA" stroke-width="12" stroke-linecap="round"/>
-  <path d="M32 100H107" stroke="#2385EA" stroke-width="8" stroke-linecap="round"/>
-  <path d="M44 100V83M58 100V71M71 100V60M84 100V71M97 100V83" stroke="#153860" stroke-width="5" stroke-linecap="round"/>
-  <path d="M28 -16L46 29L91 47L46 65L28 110L10 65L-35 47L10 29Z" fill="#FFC857"/>}.Body
-</svg>

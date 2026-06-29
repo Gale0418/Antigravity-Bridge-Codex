@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
-@{Name=route-sign-03; Title=Wayfinder sign; Body=  <path d="M26 18H82L102 40L86 58L102 76L82 102H26C18 102 12 96 12 88V32C12 24 18 18 26 18Z" fill="#1363A1"/>
-  <path d="M26 75C33 61 46 52 60 52C74 52 87 61 94 75" fill="none" stroke="#91F1E6" stroke-width="9" stroke-linecap="round"/>
-  <path d="M38 75H82" stroke="#91F1E6" stroke-width="8" stroke-linecap="round"/>
-  <circle cx="60" cy="42" r="7" fill="#FFF9EE"/>
-  <path d="M60 49V64" stroke="#FFF9EE" stroke-width="8" stroke-linecap="round"/>
-  <path d="M47 58L60 50L73 58" fill="none" stroke="#FFF9EE" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M53 81L60 69L67 81" fill="none" stroke="#FFD166" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>}.Body
-</svg>

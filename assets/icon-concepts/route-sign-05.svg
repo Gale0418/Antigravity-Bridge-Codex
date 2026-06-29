@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
-@{Name=route-sign-05; Title=Diamond sign; Body=  <path d="M60 10L110 60L60 110L10 60Z" fill="#114C85"/>
-  <path d="M25 74C32 58 45 49 60 49C75 49 88 58 95 74" fill="none" stroke="#88E8DB" stroke-width="9" stroke-linecap="round"/>
-  <path d="M37 74H83" stroke="#88E8DB" stroke-width="8" stroke-linecap="round"/>
-  <circle cx="60" cy="40" r="7" fill="#FFF9EC"/>
-  <path d="M60 47V62" stroke="#FFF9EC" stroke-width="8" stroke-linecap="round"/>
-  <path d="M48 57L60 49L72 57" fill="none" stroke="#FFF9EC" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M52 80L60 67L68 80" fill="none" stroke="#FFD166" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>}.Body
-</svg>

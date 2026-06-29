@@ -1,7 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
-@{Name=bridge-star-08; Title=Twin covered; Body=  <path d="M22 100C37 55 52 33 70 33C86 33 101 55 114 100" fill="none" stroke="#1F82E8" stroke-width="12" stroke-linecap="round"/>
-  <path d="M30 100H106" stroke="#1F82E8" stroke-width="8" stroke-linecap="round"/>
-  <path d="M47 100C55 73 62 60 71 60C80 60 88 73 95 100" fill="none" stroke="#A9D9FF" stroke-width="5" stroke-linecap="round" opacity="0.95"/>
-  <path d="M42 100V83M56 100V71M70 100V61M84 100V71M98 100V83" stroke="#14375F" stroke-width="5" stroke-linecap="round"/>
-  <path d="M36 4L49 31L76 44L49 57L36 84L23 57L-4 44L23 31Z" fill="#FFC857"/>}.Body
-</svg>

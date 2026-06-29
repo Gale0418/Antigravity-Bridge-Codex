@@ -1,7 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
-@{Name=bridge-star-10; Title=Flood overlap; Body=  <path d="M22 100C38 55 54 33 71 33C87 33 102 55 116 100" fill="none" stroke="#1D80E6" stroke-width="12" stroke-linecap="round"/>
-  <path d="M30 100H108" stroke="#1D80E6" stroke-width="9" stroke-linecap="round"/>
-  <path d="M42 100V83M56 100V70M71 100V60M85 100V70M99 100V83" stroke="#12355D" stroke-width="5" stroke-linecap="round"/>
-  <path d="M35 0L49 29L78 41L49 53L35 82L22 53L-7 41L22 29Z" fill="#FFC857"/>
-  <circle cx="58" cy="4" r="5" fill="#FFD97A"/>}.Body
-</svg>

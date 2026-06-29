@@ -1,6 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
-@{Name=bridge-star-01; Title=Covered arc; Body=  <path d="M18 98C33 57 49 38 68 38C84 38 98 57 110 98" fill="none" stroke="#1F82E8" stroke-width="12" stroke-linecap="round"/>
-  <path d="M26 98H104" stroke="#1F82E8" stroke-width="8" stroke-linecap="round"/>
-  <path d="M38 98V82M52 98V72M66 98V63M80 98V72M94 98V82" stroke="#12365D" stroke-width="5" stroke-linecap="round"/>
-  <path d="M36 4L49 31L76 44L49 57L36 84L23 57L-4 44L23 31Z" fill="#FFC857"/>}.Body
-</svg>

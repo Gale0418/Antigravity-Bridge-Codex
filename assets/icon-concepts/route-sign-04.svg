@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
-@{Name=route-sign-04; Title=Pill sign; Body=  <rect x="18" y="10" width="84" height="100" rx="28" fill="#0F5D8F"/>
-  <path d="M28 76C36 60 47 52 60 52C73 52 84 60 92 76" fill="none" stroke="#8DEBDD" stroke-width="9" stroke-linecap="round"/>
-  <path d="M40 76H80" stroke="#8DEBDD" stroke-width="8" stroke-linecap="round"/>
-  <circle cx="60" cy="42" r="7" fill="#FFF9EC"/>
-  <path d="M60 49V64" stroke="#FFF9EC" stroke-width="8" stroke-linecap="round"/>
-  <path d="M48 58L60 50L72 58" fill="none" stroke="#FFF9EC" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M52 82L60 69L68 82" fill="none" stroke="#FFC857" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>}.Body
-</svg>

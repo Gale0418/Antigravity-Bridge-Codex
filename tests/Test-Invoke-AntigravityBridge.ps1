@@ -4,7 +4,7 @@ $bridgeScriptText = Get-Content (Join-Path $PSScriptRoot '..\scripts\Invoke-Anti
 if ($bridgeScriptText -notmatch '\[switch\]\$AllowTimeout') {
     throw 'Invoke-AntigravityBridge.ps1 should expose -AllowTimeout for timeout inspection mode'
 }
-if ($bridgeScriptText -notmatch "Action '\$Action' timed out waiting for pattern") {
+if ($bridgeScriptText -notmatch 'Action ''\$Action'' timed out waiting for pattern') {
     throw 'Invoke-AntigravityBridge.ps1 should throw a timeout error before returning success-shaped JSON'
 }
 if ($bridgeScriptText -notmatch 'Re-run with -AllowTimeout to inspect partial output\.') {

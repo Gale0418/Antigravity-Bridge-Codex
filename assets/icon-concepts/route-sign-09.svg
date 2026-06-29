@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
-@{Name=route-sign-09; Title=Independent beacon; Body=  <path d="M16 80C30 60 45 50 60 50C75 50 90 60 104 80" fill="none" stroke="#125B9A" stroke-width="12" stroke-linecap="round"/>
-  <path d="M36 80H84" stroke="#20B2AA" stroke-width="9" stroke-linecap="round"/>
-  <circle cx="60" cy="39" r="8" fill="#FFF9EC" stroke="#125B9A" stroke-width="6"/>
-  <path d="M60 48V63" stroke="#125B9A" stroke-width="8" stroke-linecap="round"/>
-  <path d="M48 57L60 49L72 57" fill="none" stroke="#125B9A" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M52 85L60 71L68 85" fill="none" stroke="#FFC857" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M88 26L92 34L100 34L94 40L96 48L88 43L80 48L82 40L76 34L84 34Z" fill="#20B2AA"/>}.Body
-</svg>

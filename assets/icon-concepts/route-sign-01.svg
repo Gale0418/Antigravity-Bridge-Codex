@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
-@{Name=route-sign-01; Title=Rounded road sign; Body=  <path d="M60 10C88 10 110 32 110 60C110 88 88 110 60 110C32 110 10 88 10 60C10 32 32 10 60 10Z" fill="#0E4C92"/>
-  <path d="M24 74C31 58 44 48 60 48C76 48 89 58 96 74" fill="none" stroke="#7FE3D8" stroke-width="10" stroke-linecap="round"/>
-  <path d="M38 74H82" stroke="#7FE3D8" stroke-width="8" stroke-linecap="round"/>
-  <circle cx="60" cy="39" r="7" fill="#FFF8E7"/>
-  <path d="M60 47V63" stroke="#FFF8E7" stroke-width="8" stroke-linecap="round"/>
-  <path d="M46 56L60 49L74 56" fill="none" stroke="#FFF8E7" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M51 79L60 66L69 79" fill="none" stroke="#FFC857" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>}.Body
-</svg>
