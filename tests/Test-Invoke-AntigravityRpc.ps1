@@ -3,7 +3,7 @@ $ErrorActionPreference = 'Stop'
 . "$PSScriptRoot\..\scripts\Invoke-AntigravityRpc.ps1"
 
 $rpcScriptText = Get-Content (Join-Path $PSScriptRoot '..\scripts\Invoke-AntigravityRpc.ps1') -Raw
-if ($rpcScriptText -notmatch "elseif \\(\\$resolved -match '\\^/'\\)") {
+if ($rpcScriptText -notmatch 'elseif \(\$resolved -match ''\^/''\)') {
     throw 'ConvertTo-AntigravityFileUri should include a POSIX absolute-path branch'
 }
 if ($rpcScriptText -notmatch 'UNC paths are currently not supported') {
