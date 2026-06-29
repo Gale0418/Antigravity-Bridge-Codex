@@ -25,6 +25,15 @@ Do not use this skill when:
 - Antigravity is not installed or the user is not logged in yet
 - the task needs remote cloud APIs instead of the local Antigravity standalone app
 
+## Platform Scope
+
+- Windows and macOS are supported by the bundled discovery flow.
+- Windows discovery defaults to `%APPDATA%\Antigravity\logs\main.log` and `%APPDATA%\Antigravity\logs\language_server.log`.
+- macOS discovery first checks `~/Library/Logs/Antigravity/main.log` and `~/Library/Logs/Antigravity/language_server.log`, then falls back to the newest snapshot pair under `~/Library/Application Support/Antigravity/logs/`.
+- Workspace binding supports Windows drive-letter paths and POSIX absolute paths.
+- Linux, UNC paths, and WSL-style paths still require explicit human verification before relying on them.
+- For script calls that start cascades or send messages, prefer `-Model` or `$env:ANTIGRAVITY_MODEL`. If neither is set, the bridge falls back to the newest real model id found in local Antigravity conversation storage, and when possible also reuses the matching internal `MODEL_PLACEHOLDER_M*` enum that Antigravity's planner actually expects.
+
 ## Workflow
 
 Follow this order:
@@ -53,7 +62,7 @@ Use this when you only need to prove the session is alive.
 ```powershell
 . "$PSScriptRoot\scripts\Invoke-AntigravityRpc.ps1"
 $session = Get-AntigravitySessionInfo
-$cascade = New-AntigravityCascade -WorkspacePaths @('D:\MyGame') -Session $session
+$cascade = New-AntigravityCascade -WorkspacePaths @('/Volumes/MyGame') -Session $session
 Send-AntigravityMessage -CascadeId $cascade.CascadeId -Text 'Please reply only BRIDGE_OK' -Session $session | Out-Null
 $trajectory = Wait-AntigravityTrajectoryMatch -CascadeId $cascade.CascadeId -Pattern 'BRIDGE_OK' -Session $session
 Get-LatestAntigravityPlannerResponseText -Trajectory $trajectory
@@ -64,7 +73,7 @@ Get-LatestAntigravityPlannerResponseText -Trajectory $trajectory
 Use this before relying on a new session, after reboot, or after app restart.
 
 ```powershell
-pwsh -NoLogo -NoProfile -File "$PSScriptRoot\scripts\Run-AntigravityCapabilityMatrix.ps1" -WorkspacePath D:\MyGame
+pwsh -NoLogo -NoProfile -File "$PSScriptRoot\scripts\Run-AntigravityCapabilityMatrix.ps1" -WorkspacePath /Volumes/MyGame
 ```
 
 This runner is self-contained. It creates temporary probe files in the workspace and verifies:
@@ -85,7 +94,7 @@ Use this when Codex wants a true back-and-forth discussion with Gemini.
 Start a new conversation with:
 
 ```powershell
-pwsh -NoLogo -NoProfile -File "$PSScriptRoot\scripts\Start-AntigravityConversation.ps1" -WorkspacePath D:\MyGame -OpeningPrompt 'Let''s brainstorm the MVP for the phase 3 bridge CLI.'
+pwsh -NoLogo -NoProfile -File "$PSScriptRoot\scripts\Start-AntigravityConversation.ps1" -WorkspacePath /Volumes/MyGame -OpeningPrompt 'Let''s brainstorm the MVP for the phase 3 bridge CLI.'
 ```
 
 Then continue from the returned `cascadeId` with `Send-AntigravityMessage`. For genuine improvised chat, read Gemini's actual previous reply first, then decide the next prompt from that reply instead of pre-writing every turn. In normal collaboration, let Gemini produce the first concrete draft or edit pass, and keep Codex in the supervisor role unless there is a good reason to take over directly.
@@ -118,7 +127,8 @@ Read `references/known-gotchas.md` before changing the flow. The most important 
 
 - ports and CSRF token change when Antigravity restarts
 - `GetCascadeTrajectory` must be read from `trajectory.steps[]`, not the old top-level fields
-- omitting `cascadeConfig.plannerConfig.requestedModel` causes a deterministic failure
+- planner model wiring is strict: the bridge may need both the public model id and the paired internal `MODEL_PLACEHOLDER_M*` enum, so prefer the helper scripts instead of hand-rolling the payload
+- recent successful local conversation storage can be used as the last model fallback when no explicit model is passed, including the paired internal planner enum when available
 - UI chat visibility is optional; successful background RPC does not guarantee a visible chat window
 
 ## Resources

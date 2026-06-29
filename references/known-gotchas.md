@@ -13,25 +13,48 @@ Always rediscover them from logs instead of reusing an old value.
 
 ## Required Model Field
 
-When calling `SendUserCascadeMessage`, include:
+Do not rely on a hardcoded placeholder. Prefer `-Model` or `$env:ANTIGRAVITY_MODEL`, and otherwise let the bridge fall back to the newest real model id found in local Antigravity conversation storage.
+
+The local executor currently accepts one of these planner paths:
+
+```json
+{
+  "requestedModel": "MODEL_PLACEHOLDER_M36",
+  "cascadeConfig": {
+    "plannerConfig": {
+      "planModel": "MODEL_PLACEHOLDER_M36"
+    }
+  }
+}
+```
+
+When no internal enum mapping is discoverable, the bridge falls back to the older explicit model-id path:
 
 ```json
 {
   "cascadeConfig": {
     "plannerConfig": {
       "requestedModel": {
-        "model": "MODEL_PLACEHOLDER_M36"
+        "model": "your-real-model-id"
       }
     }
   }
 }
 ```
 
-If omitted, expect:
+If both planner paths are missing or the payload uses the wrong field shape, expect:
 
 ```text
 failed to construct executor: neither PlanModel nor RequestedModel specified. You must specify a valid model.
 ```
+
+If Antigravity shows `Agent execution terminated due to error` with that exact failure, the request reached the local executor but no real planner model survived the payload path.
+
+Current macOS/Windows bridge behavior:
+
+- top-level `StartCascade.requestedModel` prefers the paired internal enum such as `MODEL_PLACEHOLDER_M36` when a recent successful local conversation exposes it
+- `SendUserCascadeMessage.cascadeConfig.plannerConfig.planModel` also prefers that internal enum
+- when no enum mapping is discoverable, the bridge falls back to the older explicit model-id path
 
 ## New Trajectory Shape
 
@@ -57,3 +80,9 @@ Background RPC success does not imply the Antigravity chat window will visibly o
 ## Workspace Binding
 
 If the task should operate inside a specific folder, start the cascade with `workspaceUris`. Otherwise Gemini may still reply, but it will have weaker local context.
+
+## Platform limits
+
+- `ConvertTo-AntigravityFileUri` accepts Windows drive-letter paths and POSIX absolute paths, but still rejects UNC paths.
+- `Discover-AntigravitySession.ps1` auto-discovers Windows `%APPDATA%` logs and macOS `~/Library/Logs/Antigravity/*.log`, then falls back to the newest `~/Library/Application Support/Antigravity/logs/<timestamp>/` snapshot when needed.
+- Linux and WSL layouts are still not auto-detected; pass explicit log paths before trusting them.

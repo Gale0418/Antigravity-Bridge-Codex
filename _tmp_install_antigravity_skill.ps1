@@ -29,15 +29,40 @@ function Ensure-ParentDirectory {
     }
 }
 
-function Get-CodexExecutable {
-    $sandboxCodex = Join-Path $env:USERPROFILE '.codex\.sandbox-bin\codex.exe'
-    if (Test-Path -LiteralPath $sandboxCodex) {
-        return $sandboxCodex
+function Get-CodexHome {
+    if (-not [string]::IsNullOrWhiteSpace($env:CODEX_HOME)) {
+        return $env:CODEX_HOME
     }
 
-    $codexCommand = Get-Command codex.exe -ErrorAction SilentlyContinue
-    if ($codexCommand) {
-        return $codexCommand.Source
+    if (-not [string]::IsNullOrWhiteSpace($env:USERPROFILE)) {
+        return (Join-Path $env:USERPROFILE '.codex')
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($HOME)) {
+        return (Join-Path $HOME '.codex')
+    }
+
+    throw 'Cannot resolve CODEX_HOME. Set CODEX_HOME, USERPROFILE, or HOME before running the installer.'
+}
+
+function Get-CodexExecutable {
+    $codexHome = Get-CodexHome
+    $sandboxCandidates = @(
+        (Join-Path $codexHome '.sandbox-bin/codex'),
+        (Join-Path $codexHome '.sandbox-bin/codex.exe')
+    )
+
+    foreach ($candidate in $sandboxCandidates) {
+        if (Test-Path -LiteralPath $candidate) {
+            return $candidate
+        }
+    }
+
+    foreach ($commandName in @('codex', 'codex.exe')) {
+        $codexCommand = Get-Command $commandName -ErrorAction SilentlyContinue
+        if ($codexCommand) {
+            return $codexCommand.Source
+        }
     }
 
     return $null
@@ -59,14 +84,14 @@ function Invoke-NativeOrThrow {
 }
 
 $sourceRoot = $PSScriptRoot
-$codexHome = Join-Path $env:USERPROFILE '.codex'
-$skillRoot = Join-Path $codexHome 'skills\antigravity-gemini-bridge'
-$marketplaceRoot = Join-Path $codexHome 'local-marketplaces\antigravity-gemini-bridge'
-$marketplaceManifestPath = Join-Path $marketplaceRoot '.agents\plugins\marketplace.json'
-$pluginRoot = Join-Path $marketplaceRoot 'plugins\antigravity-gemini-bridge'
-$pluginSkillRoot = Join-Path $pluginRoot 'skills\antigravity-gemini-bridge'
-$repoPluginManifestPath = Join-Path $sourceRoot '.codex-plugin\plugin.json'
-$installedPluginManifestPath = Join-Path $pluginRoot '.codex-plugin\plugin.json'
+$codexHome = Get-CodexHome
+$skillRoot = Join-Path $codexHome 'skills/antigravity-gemini-bridge'
+$marketplaceRoot = Join-Path $codexHome 'local-marketplaces/antigravity-gemini-bridge'
+$marketplaceManifestPath = Join-Path $marketplaceRoot '.agents/plugins/marketplace.json'
+$pluginRoot = Join-Path $marketplaceRoot 'plugins/antigravity-gemini-bridge'
+$pluginSkillRoot = Join-Path $pluginRoot 'skills/antigravity-gemini-bridge'
+$repoPluginManifestPath = Join-Path $sourceRoot '.codex-plugin/plugin.json'
+$installedPluginManifestPath = Join-Path $pluginRoot '.codex-plugin/plugin.json'
 
 $skillItems = @(
     'SKILL.md',

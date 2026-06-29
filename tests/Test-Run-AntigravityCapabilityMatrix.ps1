@@ -1,5 +1,6 @@
 $ErrorActionPreference = 'Stop'
 
+$env:ANTIGRAVITY_MODEL = 'test-model'
 $workspace = Join-Path $env:TEMP 'antigravity matrix dryrun'
 New-Item -ItemType Directory -Force -Path $workspace | Out-Null
 $resolvedWorkspace = (Resolve-Path -LiteralPath $workspace).Path
@@ -11,6 +12,9 @@ if ($plan.workspacePath -ne $resolvedWorkspace) {
 }
 
 $scriptText = Get-Content "$PSScriptRoot\..\scripts\Run-AntigravityCapabilityMatrix.ps1" -Raw
+if ($scriptText -match 'MODEL_PLACEHOLDER_M36') {
+    throw 'Capability matrix should not use a placeholder default model'
+}
 if ($scriptText -match 'd:\\MyGame\|file:///d:/MyGame') {
     throw 'Capability matrix still hardcodes D:\MyGame in workspace-awareness checks'
 }

@@ -1,0 +1,15 @@
+name: pester
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  powershell-tests:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run bridge regression scripts
+        shell: pwsh
+        run: |
+          Get-ChildItem tests\Test-*.ps1 | ForEach-Object { & $_.FullName }

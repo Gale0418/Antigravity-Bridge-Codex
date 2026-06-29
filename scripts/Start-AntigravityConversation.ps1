@@ -2,7 +2,7 @@ param(
     [string]$WorkspacePath = (Get-Location).Path,
     [Parameter(Mandatory = $true)]
     [string]$OpeningPrompt,
-    [string]$Model = 'MODEL_PLACEHOLDER_M36',
+    [string]$Model = '',
     [ValidateSet('cute','professional')]
     [string]$IntroStyle = 'cute',
     [switch]$NoIntro,

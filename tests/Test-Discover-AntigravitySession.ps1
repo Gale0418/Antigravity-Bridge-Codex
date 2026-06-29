@@ -47,4 +47,46 @@ if ($secretSession.CsrfToken -ne $session.CsrfToken) {
     throw 'Expected ShowSecret to preserve csrf token'
 }
 
+$homeRoot = Join-Path $env:TEMP 'antigravity-discovery-home'
+$null = New-Item -ItemType Directory -Force -Path (Join-Path $homeRoot 'Library/Logs/Antigravity')
+$null = New-Item -ItemType Directory -Force -Path (Join-Path $homeRoot 'Library/Application Support/Antigravity/logs/20260629T101500')
+
+$mainLogPath = Join-Path $homeRoot 'Library/Logs/Antigravity/main.log'
+$languageLogPath = Join-Path $homeRoot 'Library/Logs/Antigravity/language_server.log'
+Set-Content -LiteralPath $mainLogPath -Value $mainLog -Encoding utf8
+Set-Content -LiteralPath $languageLogPath -Value $languageLog -Encoding utf8
+
+$macCandidates = Get-AntigravityDefaultLogPathCandidates -Platform macOS -HomeDirectory $homeRoot
+if ($macCandidates.MainLogCandidates[0] -ne $mainLogPath) {
+    throw "Expected mac main log candidate first, got '$($macCandidates.MainLogCandidates[0])'"
+}
+if ($macCandidates.LanguageServerLogCandidates[0] -ne $languageLogPath) {
+    throw "Expected mac language log candidate first, got '$($macCandidates.LanguageServerLogCandidates[0])'"
+}
+
+$macSession = Get-AntigravitySessionInfo -Platform macOS -HomeDirectory $homeRoot
+if ($macSession.MainLogPath -ne $mainLogPath) {
+    throw "Expected mac discovery to use main.log from Library/Logs, got '$($macSession.MainLogPath)'"
+}
+if ($macSession.LanguageServerLogPath -ne $languageLogPath) {
+    throw "Expected mac discovery to use language_server.log from Library/Logs, got '$($macSession.LanguageServerLogPath)'"
+}
+if ($macSession.HttpPort -ne 50609) {
+    throw "Expected mac discovery http port 50609, got '$($macSession.HttpPort)'"
+}
+
+$fallbackRoot = Join-Path $env:TEMP 'antigravity-discovery-fallback'
+$snapshotDir = Join-Path $fallbackRoot 'Library/Application Support/Antigravity/logs/20260629T102000'
+$null = New-Item -ItemType Directory -Force -Path $snapshotDir
+Set-Content -LiteralPath (Join-Path $snapshotDir 'main.log') -Value $mainLog -Encoding utf8
+Set-Content -LiteralPath (Join-Path $snapshotDir 'ls-main.log') -Value $languageLog -Encoding utf8
+
+$fallbackSession = Get-AntigravitySessionInfo -Platform macOS -HomeDirectory $fallbackRoot
+if ($fallbackSession.MainLogPath -notmatch 'main\.log$') {
+    throw "Expected fallback main log to come from snapshot directory, got '$($fallbackSession.MainLogPath)'"
+}
+if ($fallbackSession.LanguageServerLogPath -notmatch 'ls-main\.log$') {
+    throw "Expected fallback language log to come from snapshot directory, got '$($fallbackSession.LanguageServerLogPath)'"
+}
+
 Write-Host 'PASS: discovery parser fixtures look correct'

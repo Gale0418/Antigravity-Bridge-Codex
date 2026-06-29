@@ -14,14 +14,217 @@ function Get-AntigravityServiceUri {
     return "http://127.0.0.1:$HttpPort/exa.language_server_pb.LanguageServerService/$Method"
 }
 
+function Resolve-AntigravityModel {
+    param(
+        [string]$Model,
+        [string]$ConversationDirectory = ''
+    )
+
+    return (Resolve-AntigravityModelSelection -Model $Model -ConversationDirectory $ConversationDirectory).ModelId
+}
+
+function Get-AntigravityConversationDirectoryCandidates {
+    param(
+        [string]$Platform = '',
+        [string]$HomeDirectory = '',
+        [string]$UserProfileDirectory = ''
+    )
+
+    $resolvedPlatform = if ([string]::IsNullOrWhiteSpace($Platform)) {
+        Get-AntigravityPlatform
+    }
+    else {
+        $Platform
+    }
+
+    $resolvedHome = if (-not [string]::IsNullOrWhiteSpace($HomeDirectory)) {
+        $HomeDirectory
+    }
+    elseif (-not [string]::IsNullOrWhiteSpace($UserProfileDirectory)) {
+        $UserProfileDirectory
+    }
+    else {
+        [Environment]::GetFolderPath('UserProfile')
+    }
+
+    $candidates = New-Object System.Collections.Generic.List[string]
+    if (-not [string]::IsNullOrWhiteSpace($resolvedHome)) {
+        $candidates.Add((Join-Path $resolvedHome '.gemini/antigravity/conversations'))
+    }
+
+    if ($resolvedPlatform -eq 'Windows' -and -not [string]::IsNullOrWhiteSpace($resolvedHome)) {
+        $candidates.Add((Join-Path $resolvedHome '.gemini\antigravity\conversations'))
+    }
+
+    return @($candidates | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
+}
+
+function ConvertFrom-AntigravityBinaryAscii {
+    param(
+        [Parameter(Mandatory = $true)]
+        [byte[]]$Bytes
+    )
+
+    $builder = [System.Text.StringBuilder]::new($Bytes.Length)
+    foreach ($byte in $Bytes) {
+        if (($byte -ge 32 -and $byte -le 126) -or $byte -in @(9, 10, 13)) {
+            [void]$builder.Append([char]$byte)
+        }
+        else {
+            [void]$builder.Append(' ')
+        }
+    }
+
+    return $builder.ToString()
+}
+
+function New-AntigravityModelSelection {
+    param(
+        [string]$ModelId = '',
+        [string]$ModelEnum = ''
+    )
+
+    return [pscustomobject]@{
+        ModelId = $ModelId
+        ModelEnum = $ModelEnum
+    }
+}
+
+function Find-AntigravityRecentModelSelection {
+    param(
+        [string]$ConversationDirectory = '',
+        [string]$Platform = '',
+        [string]$HomeDirectory = '',
+        [string]$UserProfileDirectory = '',
+        [int]$MaxFiles = 8
+    )
+
+    $directories = if (-not [string]::IsNullOrWhiteSpace($ConversationDirectory)) {
+        @($ConversationDirectory)
+    }
+    else {
+        Get-AntigravityConversationDirectoryCandidates -Platform $Platform -HomeDirectory $HomeDirectory -UserProfileDirectory $UserProfileDirectory
+    }
+
+    $modelPattern = [regex]'(?<![A-Za-z0-9])(?:gemini|claude|gpt|gemma|openrouter)(?:[a-z0-9./:-]*[a-z0-9])'
+    $enumPattern = [regex]'MODEL_PLACEHOLDER_M\d+'
+
+    foreach ($directory in $directories) {
+        if (-not (Test-Path -LiteralPath $directory)) {
+            continue
+        }
+
+        $files = @(Get-ChildItem -LiteralPath $directory -File -ErrorAction SilentlyContinue |
+            Where-Object { $_.Extension -in @('.db', '.pb') } |
+            Sort-Object LastWriteTimeUtc -Descending |
+            Select-Object -First $MaxFiles)
+
+        foreach ($file in $files) {
+            try {
+                $content = ConvertFrom-AntigravityBinaryAscii -Bytes ([System.IO.File]::ReadAllBytes($file.FullName))
+            }
+            catch {
+                continue
+            }
+
+            $compositeMatch = [regex]::Match(
+                $content,
+                '(?s)(?<model>(?<![A-Za-z0-9])(?:gemini|claude|gpt|gemma|openrouter)(?:[a-z0-9./:-]*[a-z0-9])).{0,220}?model_enum\s+(?<enum>MODEL_PLACEHOLDER_M\d+)'
+            )
+            if ($compositeMatch.Success) {
+                return (New-AntigravityModelSelection -ModelId $compositeMatch.Groups['model'].Value.Trim() -ModelEnum $compositeMatch.Groups['enum'].Value.Trim())
+            }
+
+            foreach ($match in $modelPattern.Matches($content)) {
+                $candidate = $match.Value.Trim()
+                if ($candidate -notmatch '[-/:]') {
+                    continue
+                }
+                $windowStart = [Math]::Max(0, $match.Index - 220)
+                $windowLength = [Math]::Min($content.Length - $windowStart, 440)
+                $window = $content.Substring($windowStart, $windowLength)
+                $enumMatch = $enumPattern.Match($window)
+                if ($enumMatch.Success) {
+                    return (New-AntigravityModelSelection -ModelId $candidate -ModelEnum $enumMatch.Value.Trim())
+                }
+
+                return (New-AntigravityModelSelection -ModelId $candidate)
+            }
+        }
+    }
+
+    return (New-AntigravityModelSelection)
+}
+
+function Find-AntigravityRecentModel {
+    param(
+        [string]$ConversationDirectory = '',
+        [string]$Platform = '',
+        [string]$HomeDirectory = '',
+        [string]$UserProfileDirectory = '',
+        [int]$MaxFiles = 8
+    )
+
+    return (Find-AntigravityRecentModelSelection -ConversationDirectory $ConversationDirectory -Platform $Platform -HomeDirectory $HomeDirectory -UserProfileDirectory $UserProfileDirectory -MaxFiles $MaxFiles).ModelId
+}
+
+function Resolve-AntigravityModelSelection {
+    param(
+        [string]$Model = '',
+        [string]$ConversationDirectory = ''
+    )
+
+    $explicitModel = ''
+    if (-not [string]::IsNullOrWhiteSpace($Model)) {
+        $explicitModel = $Model.Trim()
+    }
+    elseif (-not [string]::IsNullOrWhiteSpace($env:ANTIGRAVITY_MODEL)) {
+        $explicitModel = $env:ANTIGRAVITY_MODEL.Trim()
+    }
+
+    $recentSelection = Find-AntigravityRecentModelSelection -ConversationDirectory $ConversationDirectory
+
+    if (-not [string]::IsNullOrWhiteSpace($explicitModel)) {
+        if ($explicitModel -match '^MODEL_PLACEHOLDER_M\d+$') {
+            return (New-AntigravityModelSelection -ModelId $(if ($recentSelection.ModelEnum -eq $explicitModel) { $recentSelection.ModelId } else { $explicitModel }) -ModelEnum $explicitModel)
+        }
+
+        if ($recentSelection.ModelId -eq $explicitModel -and -not [string]::IsNullOrWhiteSpace($recentSelection.ModelEnum)) {
+            return $recentSelection
+        }
+
+        return (New-AntigravityModelSelection -ModelId $explicitModel)
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($recentSelection.ModelId)) {
+        return $recentSelection
+    }
+
+    throw 'Antigravity model is required. Pass -Model, set $env:ANTIGRAVITY_MODEL, or ensure Antigravity has a recent successful local conversation with a real model id.'
+}
+
 function ConvertTo-AntigravityFileUri {
     param(
         [Parameter(Mandatory = $true)]
         [string]$Path
     )
 
+    if ($Path -match '^[\\/]{2}[^\\/]') {
+        throw "UNC paths are currently not supported: $Path"
+    }
+
     $resolved = [System.IO.Path]::GetFullPath($Path)
-    return [System.Uri]::new($resolved).AbsoluteUri
+    if ($resolved -match '^[\\/]{2}[^\\/]') {
+        throw "UNC paths are currently not supported: $resolved"
+    }
+    if ($resolved -match '^[A-Za-z]:[\\/]') {
+        return [System.Uri]::new($resolved).AbsoluteUri
+    }
+    elseif ($resolved -match '^/') {
+        return [System.Uri]::new("file://$resolved").AbsoluteUri
+    }
+
+    throw "Only Windows drive-letter and POSIX absolute paths are currently supported: $resolved"
 }
 
 function Get-AntigravityHeaders {
@@ -56,16 +259,17 @@ function Invoke-AntigravityRpc {
 
 function New-AntigravityCascade {
     param(
-        [string]$Model = 'MODEL_PLACEHOLDER_M36',
+        [string]$Model = '',
         [string[]]$WorkspacePaths,
         [string]$CascadeId = ([guid]::NewGuid().Guid),
         [psobject]$Session = (Get-AntigravitySessionInfo)
     )
 
+    $resolvedModel = Resolve-AntigravityModelSelection -Model $Model
     $body = @{
         source = 1
         cascadeId = $CascadeId
-        requestedModel = $Model
+        requestedModel = $(if ($resolvedModel.ModelEnum) { $resolvedModel.ModelEnum } else { $resolvedModel.ModelId })
     }
 
     if ($WorkspacePaths) {
@@ -90,7 +294,7 @@ function Send-AntigravityMessage {
         [Parameter(Mandatory = $true)]
         [string]$Text,
 
-        [string]$Model = 'MODEL_PLACEHOLDER_M36',
+        [string]$Model = '',
         [switch]$OmitRequestedModel,
         [psobject]$Session = (Get-AntigravitySessionInfo)
     )
@@ -105,11 +309,20 @@ function Send-AntigravityMessage {
     }
 
     if (-not $OmitRequestedModel) {
+        $resolvedModel = Resolve-AntigravityModelSelection -Model $Model
         $body.cascadeConfig = @{
             plannerConfig = @{
-                requestedModel = @{
-                    model = $Model
-                }
+                $(if ($resolvedModel.ModelEnum) {
+                    'planModel'
+                } else {
+                    'requestedModel'
+                }) = $(if ($resolvedModel.ModelEnum) {
+                    $resolvedModel.ModelEnum
+                } else {
+                    @{
+                        model = $resolvedModel.ModelId
+                    }
+                })
             }
         }
     }

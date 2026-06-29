@@ -14,9 +14,12 @@ This repository serves as the distributable source for the `antigravity-gemini-b
 
 ## Installation
 
-Run `_tmp_install_antigravity_skill.ps1` to do both of these:
+Use one of these installers to do both of these:
 
 - copy the skill package to the global `~/.codex/skills/antigravity-gemini-bridge` folder
 - sync a local plugin marketplace package under `~/.codex/local-marketplaces/antigravity-gemini-bridge`, then register or refresh the plugin so the Codex UI can use the packaged icon metadata
 
-Re-running it updates both the personal skill copy and the local plugin package from this repository.
+- macOS or any environment without PowerShell 7: run `python3 _tmp_install_antigravity_skill.py`
+- Windows or PowerShell 7 environments: run `_tmp_install_antigravity_skill.ps1`
+
+Re-running either installer updates both the personal skill copy and the local plugin package from this repository.
