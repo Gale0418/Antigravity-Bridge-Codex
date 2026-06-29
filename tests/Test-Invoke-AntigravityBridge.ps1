@@ -1,5 +1,16 @@
 $ErrorActionPreference = 'Stop'
 
+$bridgeScriptText = Get-Content (Join-Path $PSScriptRoot '..\scripts\Invoke-AntigravityBridge.ps1') -Raw
+if ($bridgeScriptText -notmatch '\[switch\]\$AllowTimeout') {
+    throw 'Invoke-AntigravityBridge.ps1 should expose -AllowTimeout for timeout inspection mode'
+}
+if ($bridgeScriptText -notmatch "Action '\$Action' timed out waiting for pattern") {
+    throw 'Invoke-AntigravityBridge.ps1 should throw a timeout error before returning success-shaped JSON'
+}
+if ($bridgeScriptText -notmatch 'Re-run with -AllowTimeout to inspect partial output\.') {
+    throw 'Invoke-AntigravityBridge.ps1 should explain how to opt into timeout inspection mode'
+}
+
 function Assert-ThrowsLike {
     param(
         [Parameter(Mandatory = $true)]
@@ -34,6 +45,7 @@ Assert-ThrowsLike -Label 'trajectory validation' -ExpectedText 'requires -Cascad
     & "$PSScriptRoot\..\scripts\Invoke-AntigravityBridge.ps1" -Action trajectory
 }
 
+$env:ANTIGRAVITY_MODEL = 'test-model'
 $json = & "$PSScriptRoot\..\scripts\Invoke-AntigravityBridge.ps1" -Action matrix -DryRun
 $plan = $json | ConvertFrom-Json
 
