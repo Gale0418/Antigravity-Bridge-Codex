@@ -281,9 +281,15 @@ def convert_to_file_uri(path_value: str) -> str:
         normalized = path_value.replace("\\", "/")
         return "file:///" + urllib.parse.quote(normalized, safe="/:")
 
+    if path_value.startswith("/"):
+        return "file://" + urllib.parse.quote(path_value, safe="/:")
+
     resolved = os.path.abspath(os.path.expanduser(path_value))
     if re.match(r"^[\\/]{2}[^\\/]", resolved):
         raise RuntimeError(f"UNC paths are currently not supported: {resolved}")
+    if re.match(r"^[A-Za-z]:[\\/]", resolved):
+        normalized = resolved.replace("\\", "/")
+        return "file:///" + urllib.parse.quote(normalized, safe="/:")
     if resolved.startswith("/"):
         return "file://" + urllib.parse.quote(resolved, safe="/:")
 
