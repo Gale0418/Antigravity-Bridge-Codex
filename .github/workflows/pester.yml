@@ -13,3 +13,12 @@ jobs:
         shell: pwsh
         run: |
           Get-ChildItem tests\Test-*.ps1 | ForEach-Object { & $_.FullName }
+  python-tests:
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Python bridge regression scripts
+        run: python -m unittest discover -s tests -p "test_*.py"

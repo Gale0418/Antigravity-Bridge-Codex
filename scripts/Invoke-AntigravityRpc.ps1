@@ -213,6 +213,11 @@ function ConvertTo-AntigravityFileUri {
         throw "UNC paths are currently not supported: $Path"
     }
 
+    if ($Path -match '^[A-Za-z]:[\\/]') {
+        $normalizedWindowsPath = $Path.Replace('\', '/')
+        return [System.Uri]::new($normalizedWindowsPath).AbsoluteUri
+    }
+
     $resolved = [System.IO.Path]::GetFullPath($Path)
     if ($resolved -match '^[\\/]{2}[^\\/]') {
         throw "UNC paths are currently not supported: $resolved"
@@ -221,7 +226,7 @@ function ConvertTo-AntigravityFileUri {
         return [System.Uri]::new($resolved).AbsoluteUri
     }
     elseif ($resolved -match '^/') {
-        return [System.Uri]::new("file://$resolved").AbsoluteUri
+        return [System.Uri]::new($resolved).AbsoluteUri
     }
 
     throw "Only Windows drive-letter and POSIX absolute paths are currently supported: $resolved"

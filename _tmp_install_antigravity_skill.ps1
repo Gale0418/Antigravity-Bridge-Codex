@@ -98,7 +98,9 @@ $skillItems = @(
     'agents',
     'assets',
     'references',
-    'scripts'
+    'scripts',
+    'mcp',
+    '.mcp.json'
 )
 
 if (-not (Test-Path -LiteralPath $skillRoot)) {
@@ -120,7 +122,9 @@ Write-Host "Syncing local plugin package to $pluginRoot"
 New-Item -ItemType Directory -Path $pluginSkillRoot -Force | Out-Null
 
 Copy-FreshItem -SourcePath (Join-Path $sourceRoot '.codex-plugin') -DestinationPath (Join-Path $pluginRoot '.codex-plugin')
+Copy-FreshItem -SourcePath (Join-Path $sourceRoot '.mcp.json') -DestinationPath (Join-Path $pluginRoot '.mcp.json')
 Copy-FreshItem -SourcePath (Join-Path $sourceRoot 'assets') -DestinationPath (Join-Path $pluginRoot 'assets')
+Copy-FreshItem -SourcePath (Join-Path $sourceRoot 'mcp') -DestinationPath (Join-Path $pluginRoot 'mcp')
 Copy-FreshItem -SourcePath (Join-Path $sourceRoot 'scripts') -DestinationPath (Join-Path $pluginRoot 'scripts')
 
 foreach ($item in $skillItems) {

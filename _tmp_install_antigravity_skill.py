@@ -18,6 +18,8 @@ SKILL_ITEMS = (
     "assets",
     "references",
     "scripts",
+    "mcp",
+    ".mcp.json",
 )
 
 
@@ -91,7 +93,9 @@ def main() -> int:
     plugin_skill_root.mkdir(parents=True, exist_ok=True)
 
     copy_fresh_item(source_root / ".codex-plugin", plugin_root / ".codex-plugin")
+    copy_fresh_item(source_root / ".mcp.json", plugin_root / ".mcp.json")
     copy_fresh_item(source_root / "assets", plugin_root / "assets")
+    copy_fresh_item(source_root / "mcp", plugin_root / "mcp")
     copy_fresh_item(source_root / "scripts", plugin_root / "scripts")
 
     for item in SKILL_ITEMS:

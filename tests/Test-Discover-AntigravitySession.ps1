@@ -47,7 +47,8 @@ if ($secretSession.CsrfToken -ne $session.CsrfToken) {
     throw 'Expected ShowSecret to preserve csrf token'
 }
 
-$homeRoot = Join-Path $env:TEMP 'antigravity-discovery-home'
+$systemTemp = [System.IO.Path]::GetTempPath()
+$homeRoot = Join-Path $systemTemp 'antigravity-discovery-home'
 $null = New-Item -ItemType Directory -Force -Path (Join-Path $homeRoot 'Library/Logs/Antigravity')
 $null = New-Item -ItemType Directory -Force -Path (Join-Path $homeRoot 'Library/Application Support/Antigravity/logs/20260629T101500')
 
@@ -75,7 +76,7 @@ if ($macSession.HttpPort -ne 50609) {
     throw "Expected mac discovery http port 50609, got '$($macSession.HttpPort)'"
 }
 
-$fallbackRoot = Join-Path $env:TEMP 'antigravity-discovery-fallback'
+$fallbackRoot = Join-Path $systemTemp 'antigravity-discovery-fallback'
 $snapshotDir = Join-Path $fallbackRoot 'Library/Application Support/Antigravity/logs/20260629T102000'
 $null = New-Item -ItemType Directory -Force -Path $snapshotDir
 Set-Content -LiteralPath (Join-Path $snapshotDir 'main.log') -Value $mainLog -Encoding utf8

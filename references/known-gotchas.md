@@ -81,8 +81,30 @@ Background RPC success does not imply the Antigravity chat window will visibly o
 
 If the task should operate inside a specific folder, start the cascade with `workspaceUris`. Otherwise Gemini may still reply, but it will have weaker local context.
 
+## Privacy and Workspace Delegation
+
+Treat Antigravity/Gemini as a scoped local collaborator. If the user explicitly authorizes a repository, file path, or task scope, Gemini through Antigravity may inspect local files within that boundary.
+
+Default to least privilege:
+
+- use high-level delegation when the scope is unclear
+- inspect and share only what is needed for the immediate task
+- avoid broad accidental disclosure such as whole disks, unrelated workspace roots, or unrelated private directories
+- keep Codex responsible for supervision and final review
+
 ## Platform limits
 
 - `ConvertTo-AntigravityFileUri` accepts Windows drive-letter paths and POSIX absolute paths, but still rejects UNC paths.
 - `Discover-AntigravitySession.ps1` auto-discovers Windows `%APPDATA%` logs and macOS `~/Library/Logs/Antigravity/*.log`, then falls back to the newest `~/Library/Application Support/Antigravity/logs/<timestamp>/` snapshot when needed.
 - Linux and WSL layouts are still not auto-detected; pass explicit log paths before trusting them.
+
+## Thread Capability Snapshots
+
+A Codex thread can lose a skill-only bridge capability after long runs, context compaction, or tool snapshot refreshes. That does not prove Antigravity is down.
+
+Recovery order:
+
+- rediscover the live Antigravity session from logs
+- use `scripts/Invoke-AntigravityBridge.ps1` when `pwsh` is available
+- use `scripts/antigravity_bridge.py` when only Python/shell fallback is available
+- use the plugin MCP tools from `.mcp.json` when the Codex session exposes them

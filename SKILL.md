@@ -53,6 +53,26 @@ Follow this order:
 10. If the remaining task is small, localized, or faster to fix directly than to delegate, Codex may apply the edit itself instead of sending Gemini another turn.
 11. Inspect Gemini's actual reply or artifacts before telling the user anything is done.
 
+## Capability Recovery
+
+If the current Codex thread does not expose a direct Antigravity bridge tool, do not assume Antigravity is broken. Recover in this order:
+
+1. Use the bundled PowerShell wrapper when `pwsh` is available: `scripts/Invoke-AntigravityBridge.ps1`.
+2. Use the Python fallback when PowerShell is unavailable or the thread only has ordinary shell access: `scripts/antigravity_bridge.py`.
+3. Use the packaged MCP server when the plugin exposes tools from `.mcp.json`.
+4. Rediscover the session from logs before every run; never reuse old ports or CSRF tokens.
+
+Keep default CLI output compact. Only request full trajectories with `-Verbosity` or `--include-trajectory` when debugging, because raw trajectories can be very large.
+
+## Privacy and Workspace Delegation
+
+When delegating tasks across the bridge, strictly adhere to these data access boundaries:
+
+1. Default to scoped delegation. When the task scope or user intent is unclear, use high-level delegation and do not automatically inspect or share local files.
+2. Respect explicit authorization. If the user authorizes access to a specific repository, file path, or task scope, Gemini through Antigravity may inspect local files within that defined boundary.
+3. Use least privilege. Share and inspect only the information needed for the immediate task, and avoid broad accidental disclosure such as whole disks, unrelated workspace roots, or unrelated private directories.
+4. Keep Codex responsible for orchestration, supervision, and final review of the generated outputs.
+
 ## Operating Modes
 
 ### Quick Smoke Check
@@ -134,6 +154,8 @@ Read `references/known-gotchas.md` before changing the flow. The most important 
 ## Resources
 
 - `scripts/Invoke-AntigravityBridge.ps1`: unified thin wrapper/CLI for discover, matrix, start, send, and trajectory commands (underlying capabilities are still provided by the existing scripts)
+- `scripts/antigravity_bridge.py`: standard-library Python fallback for discover, start, send, trajectory, and smoke commands when `pwsh` or skill tools are unavailable
+- `mcp/antigravity_bridge_server.py`: minimal stdio MCP server advertised by `.mcp.json` for tool-style recovery in plugin-capable Codex sessions
 - `scripts/Discover-AntigravitySession.ps1`: reconnect from current logs
 - `scripts/Invoke-AntigravityRpc.ps1`: create cascades, send messages, parse replies and errors
 - `scripts/Run-AntigravityCapabilityMatrix.ps1`: repeatable end-to-end verification

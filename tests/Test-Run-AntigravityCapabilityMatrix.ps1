@@ -1,7 +1,8 @@
 $ErrorActionPreference = 'Stop'
 
 $env:ANTIGRAVITY_MODEL = 'test-model'
-$workspace = Join-Path $env:TEMP 'antigravity matrix dryrun'
+$systemTemp = [System.IO.Path]::GetTempPath()
+$workspace = Join-Path $systemTemp 'antigravity matrix dryrun'
 New-Item -ItemType Directory -Force -Path $workspace | Out-Null
 $resolvedWorkspace = (Resolve-Path -LiteralPath $workspace).Path
 $json = & "$PSScriptRoot\..\scripts\Run-AntigravityCapabilityMatrix.ps1" -WorkspacePath $workspace -DryRun

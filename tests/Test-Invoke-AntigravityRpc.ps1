@@ -21,7 +21,8 @@ if ($trajectoryUri -ne 'http://127.0.0.1:50609/exa.language_server_pb.LanguageSe
     throw "Unexpected trajectory uri: $trajectoryUri"
 }
 
-$tempPath = [System.IO.Path]::GetFullPath($env:TEMP)
+$systemTemp = [System.IO.Path]::GetTempPath()
+$tempPath = [System.IO.Path]::GetFullPath($systemTemp)
 $workspaceUri = ConvertTo-AntigravityFileUri -Path $tempPath
 $expectedUri = [System.Uri]::new($tempPath).AbsoluteUri
 if ($workspaceUri -ne $expectedUri) {
@@ -50,16 +51,20 @@ if ($IsMacOS -or $IsLinux) {
 }
 
 Remove-Item Env:ANTIGRAVITY_MODEL -ErrorAction SilentlyContinue
+$originalFind = ${function:Find-AntigravityRecentModelSelection}
 try {
+    ${function:Find-AntigravityRecentModelSelection} = { return (New-AntigravityModelSelection) }
     New-AntigravityCascade -WorkspacePaths @($tempPath) -Session ([pscustomobject]@{}) | Out-Null
     throw 'Expected missing model configuration to fail explicitly'
 } catch {
     if ($_.Exception.Message -notmatch 'ANTIGRAVITY_MODEL' -and $_.Exception.Message -notmatch 'recent successful local conversation') {
         throw "Unexpected missing model error: $($_.Exception.Message)"
     }
+} finally {
+    ${function:Find-AntigravityRecentModelSelection} = $originalFind
 }
 
-$conversationDir = Join-Path $env:TEMP "antigravity-conversations-$([guid]::NewGuid().Guid)"
+$conversationDir = Join-Path $systemTemp "antigravity-conversations-$([guid]::NewGuid().Guid)"
 New-Item -ItemType Directory -Path $conversationDir | Out-Null
 [System.IO.File]::WriteAllBytes(
     (Join-Path $conversationDir 'recent.db'),
