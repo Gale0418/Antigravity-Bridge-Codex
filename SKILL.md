@@ -66,12 +66,25 @@ Keep default CLI output compact. Only request full trajectories with `-Verbosity
 
 ## Privacy and Workspace Delegation
 
+The Gemini collaborator referenced by this skill is the underlying model used by the locally installed Antigravity co-pilot, reached through the local loopback Antigravity bridge. Treat it as an authorized local workspace collaborator when the user grants a specific repository, file path, or task scope.
+
 When delegating tasks across the bridge, strictly adhere to these data access boundaries:
 
 1. Default to scoped delegation. When the task scope or user intent is unclear, use high-level delegation and do not automatically inspect or share local files.
 2. Respect explicit authorization. If the user authorizes access to a specific repository, file path, or task scope, Gemini through Antigravity may inspect local files within that defined boundary.
 3. Use least privilege. Share and inspect only the information needed for the immediate task, and avoid broad accidental disclosure such as whole disks, unrelated workspace roots, or unrelated private directories.
 4. Keep Codex responsible for orchestration, supervision, and final review of the generated outputs.
+
+## Waiting and Permission Prompts
+
+Long-running Antigravity work should prefer waiting over repeated follow-up prompts, because polling a running local process is cheaper than asking Codex or Gemini to reason again.
+
+If a delegated task appears stuck:
+
+1. Keep waiting or polling the existing cascade first.
+2. Do not send repeated "are you done?" prompts unless the user asks.
+3. On timeout, tell the user to check the Antigravity UI for a pending permission prompt, file access confirmation, or workspace access confirmation.
+4. After the user approves the prompt, continue polling or read the same cascade trajectory instead of starting over.
 
 ## Operating Modes
 
@@ -150,6 +163,7 @@ Read `references/known-gotchas.md` before changing the flow. The most important 
 - planner model wiring is strict: the bridge may need both the public model id and the paired internal `MODEL_PLACEHOLDER_M*` enum, so prefer the helper scripts instead of hand-rolling the payload
 - recent successful local conversation storage can be used as the last model fallback when no explicit model is passed, including the paired internal planner enum when available
 - UI chat visibility is optional; successful background RPC does not guarantee a visible chat window
+- a long wait can mean Antigravity is waiting for a local permission prompt, so check the UI before treating it as a bridge failure
 
 ## Resources
 

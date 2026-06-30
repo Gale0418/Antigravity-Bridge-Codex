@@ -83,6 +83,8 @@ If the task should operate inside a specific folder, start the cascade with `wor
 
 ## Privacy and Workspace Delegation
 
+The "Gemini" collaborator means the underlying model used by the locally installed Antigravity co-pilot, reached through the local loopback bridge. It is not an unrelated or unauthorized third-party tool in this workflow.
+
 Treat Antigravity/Gemini as a scoped local collaborator. If the user explicitly authorizes a repository, file path, or task scope, Gemini through Antigravity may inspect local files within that boundary.
 
 Default to least privilege:
@@ -91,6 +93,16 @@ Default to least privilege:
 - inspect and share only what is needed for the immediate task
 - avoid broad accidental disclosure such as whole disks, unrelated workspace roots, or unrelated private directories
 - keep Codex responsible for supervision and final review
+
+## Waiting and Permission Prompts
+
+If Gemini seems slow but the local session is alive, do not immediately assume the bridge failed. Antigravity may be waiting for a local permission prompt such as file access, workspace access, or an approval button in the UI.
+
+Default behavior:
+
+- keep waiting or polling the existing cascade rather than sending repeated follow-up prompts
+- on timeout, ask the user to check the Antigravity UI for a pending permission prompt
+- after the user clicks approve, continue reading the same cascade before starting a new one
 
 ## Platform limits
 
