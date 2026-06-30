@@ -1,5 +1,5 @@
 ---
-name: antigravity-gemini-bridge
+name: antigravity-bridge-codex
 description: Use when Codex needs to reconnect a locally logged-in Antigravity session, talk to Gemini through the standalone language server, run capability or multi-turn collaboration checks, or coordinate a shared workspace task where Codex plans and reviews while Gemini executes or brainstorms.
 ---
 
@@ -55,7 +55,7 @@ Follow this order:
 
 ## Capability Recovery
 
-If the current Codex thread does not expose a direct Antigravity bridge tool, do not assume Antigravity is broken. Recover in this order:
+If the current Codex thread lacks a direct Antigravity bridge tool, for example when `tool_search` fails, you must not stop. Do not assume Antigravity is broken; actually run a local fallback in this order, first running `discover` or a smoke check, then entering collaborative chat or sending a message:
 
 1. Use the bundled PowerShell wrapper when `pwsh` is available: `scripts/Invoke-AntigravityBridge.ps1`.
 2. Use the Python fallback when PowerShell is unavailable or the thread only has ordinary shell access: `scripts/antigravity_bridge.py`.

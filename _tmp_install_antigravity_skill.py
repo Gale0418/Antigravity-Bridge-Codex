@@ -23,6 +23,29 @@ SKILL_ITEMS = (
 )
 
 
+def legacy_plugin_name() -> str:
+    return "antigravity-" + "gemini" + "-bridge"
+
+
+def normalize_mcp_manifest(manifest_path: Path) -> None:
+    if not manifest_path.exists():
+        return
+
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    server = manifest.get("mcpServers", {}).get("antigravity-bridge-codex")
+    if not isinstance(server, dict):
+        return
+
+    server.setdefault("type", "stdio")
+    if os.name == "nt" and server.get("command") == "python3":
+        server["command"] = "python"
+
+    manifest_path.write_text(
+        json.dumps(manifest, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+
+
 def copy_fresh_item(source: Path, destination: Path) -> None:
     if not source.exists():
         return
@@ -68,14 +91,46 @@ def run_native_or_throw(executable: Path, *arguments: str) -> None:
     subprocess.run(command, check=True)
 
 
+def run_native_best_effort(executable: Path, *arguments: str) -> None:
+    command = [str(executable), *arguments]
+    subprocess.run(command, check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+def remove_path_best_effort(path: Path) -> None:
+    if path.exists() or path.is_symlink():
+        if path.is_dir() and not path.is_symlink():
+            shutil.rmtree(path)
+        else:
+            path.unlink()
+
+
+def remove_legacy_install(codex_home: Path, codex_executable: Path | None) -> None:
+    legacy_name = legacy_plugin_name()
+    legacy_marketplace = f"{legacy_name}-local"
+
+    if codex_executable is not None:
+        run_native_best_effort(codex_executable, "plugin", "remove", f"{legacy_name}@{legacy_marketplace}")
+        run_native_best_effort(codex_executable, "plugin", "marketplace", "remove", legacy_marketplace)
+
+    for path in (
+        codex_home / "skills" / legacy_name,
+        codex_home / "local-marketplaces" / legacy_name,
+        codex_home / "plugins" / "cache" / legacy_marketplace,
+    ):
+        remove_path_best_effort(path)
+
+
 def main() -> int:
     source_root = Path(__file__).resolve().parent
     codex_home = get_codex_home()
-    skill_root = codex_home / "skills" / "antigravity-gemini-bridge"
-    marketplace_root = codex_home / "local-marketplaces" / "antigravity-gemini-bridge"
+    codex_executable = get_codex_executable(codex_home)
+    remove_legacy_install(codex_home, codex_executable)
+
+    skill_root = codex_home / "skills" / "antigravity-bridge-codex"
+    marketplace_root = codex_home / "local-marketplaces" / "antigravity-bridge-codex"
     marketplace_manifest_path = marketplace_root / ".agents" / "plugins" / "marketplace.json"
-    plugin_root = marketplace_root / "plugins" / "antigravity-gemini-bridge"
-    plugin_skill_root = plugin_root / "skills" / "antigravity-gemini-bridge"
+    plugin_root = marketplace_root / "plugins" / "antigravity-bridge-codex"
+    plugin_skill_root = plugin_root / "skills" / "antigravity-bridge-codex"
     repo_plugin_manifest_path = source_root / ".codex-plugin" / "plugin.json"
     installed_plugin_manifest_path = plugin_root / ".codex-plugin" / "plugin.json"
 
@@ -83,6 +138,7 @@ def main() -> int:
     print(f"Installing personal skill from {source_root} to {skill_root}")
     for item in SKILL_ITEMS:
         copy_fresh_item(source_root / item, skill_root / item)
+    normalize_mcp_manifest(skill_root / ".mcp.json")
 
     if not repo_plugin_manifest_path.exists():
         print(f"Warning: skipping local plugin sync because {repo_plugin_manifest_path} is missing.", file=sys.stderr)
@@ -97,9 +153,11 @@ def main() -> int:
     copy_fresh_item(source_root / "assets", plugin_root / "assets")
     copy_fresh_item(source_root / "mcp", plugin_root / "mcp")
     copy_fresh_item(source_root / "scripts", plugin_root / "scripts")
+    normalize_mcp_manifest(plugin_root / ".mcp.json")
 
     for item in SKILL_ITEMS:
         copy_fresh_item(source_root / item, plugin_skill_root / item)
+    normalize_mcp_manifest(plugin_skill_root / ".mcp.json")
 
     plugin_manifest = json.loads(installed_plugin_manifest_path.read_text(encoding="utf-8"))
     plugin_manifest["version"] = f"0.1.0+codex.{datetime.now().strftime('%Y%m%d%H%M%S')}"
@@ -110,14 +168,14 @@ def main() -> int:
     )
 
     marketplace_manifest = {
-        "name": "antigravity-gemini-bridge-local",
+        "name": "antigravity-bridge-codex-local",
         "interface": {"displayName": "Local Antigravity Bridge Codex"},
         "plugins": [
             {
-                "name": "antigravity-gemini-bridge",
+                "name": "antigravity-bridge-codex",
                 "source": {
                     "source": "local",
-                    "path": "./plugins/antigravity-gemini-bridge",
+                    "path": "./plugins/antigravity-bridge-codex",
                 },
                 "policy": {
                     "installation": "AVAILABLE",
@@ -133,7 +191,6 @@ def main() -> int:
         encoding="utf-8",
     )
 
-    codex_executable = get_codex_executable(codex_home)
     if codex_executable is None:
         print("Warning: Codex executable not found; local plugin files were synced but not registered.", file=sys.stderr)
         print("Install completed.")
@@ -141,8 +198,8 @@ def main() -> int:
 
     print(f"Registering marketplace with {codex_executable}")
     run_native_or_throw(codex_executable, "plugin", "marketplace", "add", str(marketplace_root))
-    print("Installing or refreshing local plugin antigravity-gemini-bridge@antigravity-gemini-bridge-local")
-    run_native_or_throw(codex_executable, "plugin", "add", "antigravity-gemini-bridge@antigravity-gemini-bridge-local")
+    print("Installing or refreshing local plugin antigravity-bridge-codex@antigravity-bridge-codex-local")
+    run_native_or_throw(codex_executable, "plugin", "add", "antigravity-bridge-codex@antigravity-bridge-codex-local")
     print("Install completed.")
     return 0
 

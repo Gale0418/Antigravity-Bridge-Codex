@@ -1,11 +1,11 @@
 # Skill Packaging
 
-This repository serves as the distributable source for the `antigravity-gemini-bridge` Codex skill, presented to users as `Antigravity Bridge Codex`.
+This repository serves as the distributable source for the `antigravity-bridge-codex` Codex skill, presented to users as `Antigravity Bridge Codex`.
 
 ## Directory Structure
 
 - `.codex-plugin/`: Contains the plugin manifest used when this repository is packaged as a local Codex plugin with its own icon and metadata.
-- `.mcp.json`: Advertises the local MCP stdio server when the plugin is loaded with tool support.
+- `.mcp.json`: Advertises the local MCP stdio server when the plugin is loaded with tool support. Keep the server entry explicit with `type: "stdio"`.
 - `agents/`: Contains `openai.yaml` which defines the UI integration (display name, short description, icon paths, and invocation policies).
 - `assets/`: Contains the SVG icons used by the UI (`icon-small.svg`, `logo-large.svg`).
 - `mcp/`: Contains the minimal Python MCP server that wraps the bridge fallback.
@@ -18,8 +18,8 @@ This repository serves as the distributable source for the `antigravity-gemini-b
 
 Use one of these installers to do both of these:
 
-- copy the skill package to the global `~/.codex/skills/antigravity-gemini-bridge` folder
-- sync a local plugin marketplace package under `~/.codex/local-marketplaces/antigravity-gemini-bridge`, then register or refresh the plugin so the Codex UI can use the packaged icon metadata
+- copy the skill package to the global `~/.codex/skills/antigravity-bridge-codex` folder
+- sync a local plugin marketplace package under `~/.codex/local-marketplaces/antigravity-bridge-codex`, then register or refresh the plugin so the Codex UI can use the packaged icon metadata
 
 - macOS or any environment without PowerShell 7: run `python3 _tmp_install_antigravity_skill.py`
 - Windows or PowerShell 7 environments: run `_tmp_install_antigravity_skill.ps1`

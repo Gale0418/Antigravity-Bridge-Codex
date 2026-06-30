@@ -225,7 +225,7 @@ def handle_request(request: dict[str, Any]) -> dict[str, Any] | None:
         if method == "initialize":
             result = {
                 "protocolVersion": PROTOCOL_VERSION,
-                "serverInfo": {"name": "antigravity-bridge", "version": "0.1.0"},
+                "serverInfo": {"name": "antigravity-bridge-codex", "version": "0.1.0"},
                 "capabilities": {"tools": {}},
             }
         elif method == "tools/list":

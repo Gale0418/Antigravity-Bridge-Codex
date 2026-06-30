@@ -1,6 +1,6 @@
 # Visual Identity
 
-The `antigravity-gemini-bridge` skill is presented to users as `Antigravity Bridge Codex`, with a distinct visual theme representing the local bridge between Codex and Antigravity.
+The `antigravity-bridge-codex` skill is presented to users as `Antigravity Bridge Codex`, with a distinct visual theme representing the local bridge between Codex and Antigravity.
 
 ## Theme Details
 

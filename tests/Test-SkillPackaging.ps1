@@ -8,6 +8,7 @@ $packagingDocPath = Join-Path $repoRoot 'references\skill-packaging.md'
 $mcpManifestPath = Join-Path $repoRoot '.mcp.json'
 $mcpServerPath = Join-Path $repoRoot 'mcp\antigravity_bridge_server.py'
 $pythonBridgePath = Join-Path $repoRoot 'scripts\antigravity_bridge.py'
+$legacyName = ('antigravity-', 'gemini', '-bridge') -join ''
 
 if (-not (Test-Path -LiteralPath $pluginManifestPath)) {
     throw "Missing plugin manifest: $pluginManifestPath"
@@ -30,8 +31,11 @@ if (-not (Test-Path -LiteralPath $pythonBridgePath)) {
 
 $manifest = Get-Content -LiteralPath $pluginManifestPath -Raw | ConvertFrom-Json
 
-if ($manifest.name -ne 'antigravity-gemini-bridge') {
+if ($manifest.name -ne 'antigravity-bridge-codex') {
     throw "Unexpected plugin name: $($manifest.name)"
+}
+if ((Get-Content -LiteralPath $pluginManifestPath -Raw) -match $legacyName) {
+    throw "Plugin manifest should not use the legacy $legacyName name"
 }
 
 if ($manifest.skills -ne './skills/') {
@@ -39,6 +43,15 @@ if ($manifest.skills -ne './skills/') {
 }
 if ($manifest.mcpServers -ne './.mcp.json') {
     throw "Unexpected MCP servers path: $($manifest.mcpServers)"
+}
+
+$mcpManifest = Get-Content -LiteralPath $mcpManifestPath -Raw | ConvertFrom-Json
+$bridgeServer = $mcpManifest.mcpServers.'antigravity-bridge-codex'
+if ($bridgeServer.type -ne 'stdio') {
+    throw "Expected MCP server type 'stdio' but got '$($bridgeServer.type)'"
+}
+if ([string]::IsNullOrWhiteSpace($bridgeServer.command)) {
+    throw 'Expected MCP server command to be set'
 }
 
 $composerIconPath = Join-Path $repoRoot ($manifest.interface.composerIcon -replace '^\./', '')
@@ -69,6 +82,12 @@ if ($pythonInstallerText -notmatch '"mcp"') {
 if ($pythonInstallerText -notmatch '"\.mcp\.json"') {
     throw 'Python installer should copy .mcp.json'
 }
+if ($pythonInstallerText -match $legacyName) {
+    throw "Python installer should not use the legacy $legacyName name"
+}
+if ($pythonInstallerText -notmatch 'normalize_mcp_manifest') {
+    throw 'Python installer should normalize the installed MCP manifest'
+}
 
 $powershellInstallerText = Get-Content -LiteralPath $powershellInstallerPath -Raw
 if ($powershellInstallerText -notmatch "'mcp'") {
@@ -76,6 +95,12 @@ if ($powershellInstallerText -notmatch "'mcp'") {
 }
 if ($powershellInstallerText -notmatch "'\.mcp\.json'") {
     throw 'PowerShell installer should copy .mcp.json'
+}
+if ($powershellInstallerText -match $legacyName) {
+    throw "PowerShell installer should not use the legacy $legacyName name"
+}
+if ($powershellInstallerText -notmatch 'Set-InstalledMcpInterpreter') {
+    throw 'PowerShell installer should normalize the installed MCP manifest'
 }
 
 Write-Host 'PASS: plugin packaging metadata looks correct'
