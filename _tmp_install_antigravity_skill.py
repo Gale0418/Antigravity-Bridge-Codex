@@ -21,21 +21,38 @@ SKILL_ITEMS = (
     "mcp",
     ".mcp.json",
 )
+PLUGIN_ITEMS = (
+    ".codex-plugin",
+    "SKILL.md",
+    "agents",
+    "assets",
+    "references",
+    "scripts",
+    "skills",
+    "mcp",
+    ".mcp.json",
+)
+STABLE_MCP_SERVER_NAME = "antigravity_bridge_codex"
 
 
 def legacy_plugin_name() -> str:
     return "antigravity-" + "gemini" + "-bridge"
 
 
+def is_windows_store_python_alias(path: str | os.PathLike[str]) -> bool:
+    normalized = str(path).replace("/", "\\").lower()
+    return os.name == "nt" and "\\microsoft\\windowsapps\\python" in normalized and normalized.endswith(".exe")
+
+
 def resolve_mcp_python_command() -> str:
     if sys.executable:
         executable = Path(sys.executable).resolve()
-        if executable.exists():
+        if executable.exists() and not is_windows_store_python_alias(executable):
             return str(executable)
 
     for name in ("python3", "python"):
         resolved = shutil.which(name)
-        if resolved:
+        if resolved and not is_windows_store_python_alias(resolved):
             return resolved
 
     return "python" if os.name == "nt" else "python3"
@@ -134,6 +151,26 @@ def remove_legacy_install(codex_home: Path, codex_executable: Path | None) -> No
         remove_path_best_effort(path)
 
 
+def register_stable_mcp_server(codex_executable: Path, plugin_root: Path) -> None:
+    server_path = plugin_root / "mcp" / "antigravity_bridge_server.py"
+    if not server_path.exists():
+        print(f"Warning: skipping stable MCP registration because {server_path} is missing.", file=sys.stderr)
+        return
+
+    python_command = resolve_mcp_python_command()
+    print(f"Registering stable MCP server {STABLE_MCP_SERVER_NAME} with {codex_executable}")
+    run_native_best_effort(codex_executable, "mcp", "remove", STABLE_MCP_SERVER_NAME)
+    run_native_or_throw(
+        codex_executable,
+        "mcp",
+        "add",
+        STABLE_MCP_SERVER_NAME,
+        "--",
+        python_command,
+        str(server_path),
+    )
+
+
 def main() -> int:
     source_root = Path(__file__).resolve().parent
     codex_home = get_codex_home()
@@ -144,7 +181,6 @@ def main() -> int:
     marketplace_root = codex_home / "local-marketplaces" / "antigravity-bridge-codex"
     marketplace_manifest_path = marketplace_root / ".agents" / "plugins" / "marketplace.json"
     plugin_root = marketplace_root / "plugins" / "antigravity-bridge-codex"
-    plugin_skill_root = plugin_root / "skills" / "antigravity-bridge-codex"
     repo_plugin_manifest_path = source_root / ".codex-plugin" / "plugin.json"
     installed_plugin_manifest_path = plugin_root / ".codex-plugin" / "plugin.json"
 
@@ -160,18 +196,11 @@ def main() -> int:
         return 0
 
     print(f"Syncing local plugin package to {plugin_root}")
-    plugin_skill_root.mkdir(parents=True, exist_ok=True)
+    plugin_root.mkdir(parents=True, exist_ok=True)
 
-    copy_fresh_item(source_root / ".codex-plugin", plugin_root / ".codex-plugin")
-    copy_fresh_item(source_root / ".mcp.json", plugin_root / ".mcp.json")
-    copy_fresh_item(source_root / "assets", plugin_root / "assets")
-    copy_fresh_item(source_root / "mcp", plugin_root / "mcp")
-    copy_fresh_item(source_root / "scripts", plugin_root / "scripts")
+    for item in PLUGIN_ITEMS:
+        copy_fresh_item(source_root / item, plugin_root / item)
     normalize_mcp_manifest(plugin_root / ".mcp.json")
-
-    for item in SKILL_ITEMS:
-        copy_fresh_item(source_root / item, plugin_skill_root / item)
-    normalize_mcp_manifest(plugin_skill_root / ".mcp.json")
 
     plugin_manifest = json.loads(installed_plugin_manifest_path.read_text(encoding="utf-8"))
     plugin_manifest["version"] = f"0.1.0+codex.{datetime.now().strftime('%Y%m%d%H%M%S')}"
@@ -214,6 +243,7 @@ def main() -> int:
     run_native_or_throw(codex_executable, "plugin", "marketplace", "add", str(marketplace_root))
     print("Installing or refreshing local plugin antigravity-bridge-codex@antigravity-bridge-codex-local")
     run_native_or_throw(codex_executable, "plugin", "add", "antigravity-bridge-codex@antigravity-bridge-codex-local")
+    register_stable_mcp_server(codex_executable, plugin_root)
     print("Install completed.")
     return 0
 

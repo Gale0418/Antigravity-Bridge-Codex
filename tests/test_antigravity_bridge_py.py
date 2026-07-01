@@ -1,11 +1,14 @@
+from __future__ import annotations
+
 import importlib.util
+import json
 import os
+import shutil
+import subprocess
 import sys
-import tempfile
 import time
 import unittest
 from pathlib import Path
-
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 MODULE_PATH = REPO_ROOT / "scripts" / "antigravity_bridge.py"
@@ -14,6 +17,17 @@ spec = importlib.util.spec_from_file_location("antigravity_bridge", MODULE_PATH)
 bridge = importlib.util.module_from_spec(spec)
 sys.modules[spec.name] = bridge
 spec.loader.exec_module(bridge)
+
+
+TEST_TMP_ROOT = REPO_ROOT / ".tmp" / "python-tests"
+
+
+def fresh_test_dir(name: str) -> Path:
+    path = TEST_TMP_ROOT / name
+    if path.exists():
+        shutil.rmtree(path)
+    path.mkdir(parents=True)
+    return path
 
 
 class AntigravityBridgePythonTests(unittest.TestCase):
@@ -37,12 +51,11 @@ class AntigravityBridgePythonTests(unittest.TestCase):
         self.assertEqual(session["process_id"], 9568)
 
     def test_default_mac_log_candidates_include_live_and_snapshot_paths(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            home = Path(tmp)
-            snapshot = home / "Library" / "Application Support" / "Antigravity" / "logs" / "20260630T010203"
-            snapshot.mkdir(parents=True)
+        home = fresh_test_dir("mac-log-candidates")
+        snapshot = home / "Library" / "Application Support" / "Antigravity" / "logs" / "20260630T010203"
+        snapshot.mkdir(parents=True)
 
-            candidates = bridge.default_log_path_candidates("macOS", home_directory=home)
+        candidates = bridge.default_log_path_candidates("macOS", home_directory=home)
 
         main_candidates = [str(path) for path in candidates["main_log_candidates"]]
         language_candidates = [str(path) for path in candidates["language_server_log_candidates"]]
@@ -96,18 +109,133 @@ class AntigravityBridgePythonTests(unittest.TestCase):
         self.assertEqual(compact["observedText"], "OK")
 
     def test_recent_model_selection_reads_model_and_enum(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            db = Path(tmp) / "conversation.db"
-            db.write_bytes(
-                b"model_name gemini-2.5-pro preview data "
-                b"model_enum MODEL_PLACEHOLDER_M36 "
-            )
-            os.utime(db, (time.time(), time.time()))
+        tmp = fresh_test_dir("recent-model-selection")
+        db = tmp / "conversation.db"
+        db.write_bytes(
+            b"model_name gemini-2.5-pro preview data "
+            b"model_enum MODEL_PLACEHOLDER_M36 "
+        )
+        os.utime(db, (time.time(), time.time()))
 
-            selection = bridge.find_recent_model_selection(conversation_directory=tmp)
+        selection = bridge.find_recent_model_selection(conversation_directory=tmp)
 
         self.assertEqual(selection.model_id, "gemini-2.5-pro")
         self.assertEqual(selection.model_enum, "MODEL_PLACEHOLDER_M36")
+
+    def test_mcp_stdio_server_recovery_path(self):
+        server_path = REPO_ROOT / "mcp" / "antigravity_bridge_server.py"
+        home = fresh_test_dir("mcp-discover-home")
+        self._write_fake_antigravity_logs(home)
+        process = subprocess.Popen(
+            [sys.executable, str(server_path)],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=self._isolated_home_env(home),
+        )
+        try:
+            initialize = self._mcp_request(process, 1, "initialize")
+            tools = self._mcp_request(process, 2, "tools/list")
+            discover = self._mcp_request(
+                process,
+                3,
+                "tools/call",
+                {"name": "antigravity_discover", "arguments": {"show_secret": False}},
+            )
+        finally:
+            process.kill()
+            process.communicate(timeout=5)
+
+        self.assertEqual(initialize["result"]["serverInfo"]["name"], "antigravity-bridge-codex")
+        tool_names = {tool["name"] for tool in tools["result"]["tools"]}
+        self.assertIn("antigravity_discover", tool_names)
+        self.assertIn("antigravity_smoke", tool_names)
+        self.assertIn("antigravity_start", tool_names)
+        self.assertIn("antigravity_send", tool_names)
+        self.assertIn("antigravity_trajectory", tool_names)
+
+        discover_result = json.loads(discover["result"]["content"][0]["text"])
+        self.assertFalse(discover["result"]["isError"])
+        self.assertEqual(discover_result["csrf_token"], "<redacted>")
+        self.assertEqual(discover_result["http_port"], 54590)
+
+    def test_mcp_tools_call_validates_request_before_discovering_session(self):
+        server_path = REPO_ROOT / "mcp" / "antigravity_bridge_server.py"
+        home = fresh_test_dir("mcp-no-session-home")
+        process = subprocess.Popen(
+            [sys.executable, str(server_path)],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=self._isolated_home_env(home),
+        )
+        try:
+            missing_argument = self._mcp_request(
+                process,
+                1,
+                "tools/call",
+                {"name": "antigravity_trajectory", "arguments": {}},
+            )
+            unknown_tool = self._mcp_request(
+                process,
+                2,
+                "tools/call",
+                {"name": "not_a_real_tool", "arguments": {}},
+            )
+        finally:
+            process.kill()
+            process.communicate(timeout=5)
+
+        missing_argument_error = json.loads(missing_argument["result"]["content"][0]["text"])
+        unknown_tool_error = json.loads(unknown_tool["result"]["content"][0]["text"])
+        self.assertTrue(missing_argument["result"]["isError"])
+        self.assertEqual(missing_argument_error["error"], "Missing required string argument: cascade_id")
+        self.assertTrue(unknown_tool["result"]["isError"])
+        self.assertEqual(unknown_tool_error["error"], "Unknown tool: not_a_real_tool")
+
+    def _write_fake_antigravity_logs(self, home: Path) -> None:
+        main_log = """
+        argv --csrf_token 11111111-2222-3333-4444-555555555555
+        Local: https://127.0.0.1:54589/
+        """
+        language_log = """
+        started language server process with pid 9568
+        listening on port at 54589 for HTTPS
+        listening on port at 54590 for HTTP
+        """
+        log_directories = [
+            home / "AppData" / "Roaming" / "Antigravity" / "logs",
+            home / "Library" / "Logs" / "Antigravity",
+        ]
+        for log_directory in log_directories:
+            log_directory.mkdir(parents=True)
+            (log_directory / "main.log").write_text(main_log, encoding="utf-8")
+            (log_directory / "language_server.log").write_text(language_log, encoding="utf-8")
+
+    def _isolated_home_env(self, home: Path) -> dict[str, str]:
+        env = os.environ.copy()
+        env["HOME"] = str(home)
+        env["USERPROFILE"] = str(home)
+        env["APPDATA"] = str(home / "AppData" / "Roaming")
+        return env
+
+    def _mcp_request(self, process: subprocess.Popen, request_id: int, method: str, params: dict | None = None) -> dict:
+        req = {"jsonrpc": "2.0", "id": request_id, "method": method}
+        if params is not None:
+            req["params"] = params
+        payload = json.dumps(req, separators=(",", ":")).encode("utf-8")
+        process.stdin.write(f"Content-Length: {len(payload)}\r\n\r\n".encode("ascii") + payload)
+        process.stdin.flush()
+
+        headers = {}
+        while True:
+            line = process.stdout.readline()
+            if line in (b"\r\n", b"\n"):
+                break
+            key, _, value = line.decode("ascii").partition(":")
+            headers[key.lower()] = value.strip()
+        length = int(headers["content-length"])
+        return json.loads(process.stdout.read(length).decode("utf-8"))
 
 
 if __name__ == "__main__":

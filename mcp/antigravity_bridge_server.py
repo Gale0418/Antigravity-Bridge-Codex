@@ -144,11 +144,12 @@ def require_string(arguments: dict[str, Any], name: str) -> str:
 
 
 def call_tool(name: str, arguments: dict[str, Any]) -> Any:
-    session = bridge.get_session_info()
     if name == "antigravity_discover":
+        session = bridge.get_session_info()
         return session.public_dict(bool(arguments.get("show_secret", False)))
 
     if name == "antigravity_smoke":
+        session = bridge.get_session_info()
         cascade = bridge.new_cascade([arguments.get("workspace_path") or str(REPO_ROOT)], arguments.get("model", ""), session=session)
         bridge.send_message(cascade["cascadeId"], arguments.get("prompt", "Please reply only BRIDGE_OK"), arguments.get("model", ""), session=session)
         outcome = bridge.wait_trajectory_outcome(
@@ -169,8 +170,10 @@ def call_tool(name: str, arguments: dict[str, Any]) -> Any:
         }
 
     if name == "antigravity_start":
+        opening_prompt = require_string(arguments, "opening_prompt")
+        session = bridge.get_session_info()
         cascade = bridge.new_cascade([arguments.get("workspace_path") or str(REPO_ROOT)], arguments.get("model", ""), session=session)
-        bridge.send_message(cascade["cascadeId"], require_string(arguments, "opening_prompt"), arguments.get("model", ""), session=session)
+        bridge.send_message(cascade["cascadeId"], opening_prompt, arguments.get("model", ""), session=session)
         outcome = bridge.wait_trajectory_outcome(
             cascade["cascadeId"],
             arguments.get("wait_pattern", "(?s).+"),
@@ -190,9 +193,11 @@ def call_tool(name: str, arguments: dict[str, Any]) -> Any:
 
     if name == "antigravity_send":
         cascade_id = require_string(arguments, "cascade_id")
+        text = require_string(arguments, "text")
+        session = bridge.get_session_info()
         bridge.send_message(
             cascade_id,
-            require_string(arguments, "text"),
+            text,
             arguments.get("model", ""),
             bool(arguments.get("omit_requested_model", False)),
             session,
@@ -210,7 +215,9 @@ def call_tool(name: str, arguments: dict[str, Any]) -> Any:
         return {"action": "send", **bridge.compact_outcome(outcome, bool(arguments.get("include_trajectory", False)))}
 
     if name == "antigravity_trajectory":
-        return bridge.get_trajectory(require_string(arguments, "cascade_id"), int(arguments.get("verbosity", 2)), session)
+        cascade_id = require_string(arguments, "cascade_id")
+        session = bridge.get_session_info()
+        return bridge.get_trajectory(cascade_id, int(arguments.get("verbosity", 2)), session)
 
     raise RuntimeError(f"Unknown tool: {name}")
 

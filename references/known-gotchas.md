@@ -118,6 +118,7 @@ For plugin-based MCP loading, two package details are easy to miss:
 
 - the plugin manifest must carry `bundledContentVariant: legacy-mcp`, matching Codex-bundled MCP plugins
 - installed `.mcp.json` copies should use an absolute Python command when possible, because GUI-launched Codex sessions may not inherit the same PATH as a terminal
+- the installer also registers `antigravity_bridge_codex` through `codex mcp add`; prefer that stable user-level MCP server if a thread sees the plugin skill but not the plugin-provided MCP tools
 
 Recovery order:
 

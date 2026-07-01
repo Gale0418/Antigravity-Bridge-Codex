@@ -113,11 +113,19 @@ function Test-IsWindowsPlatform {
     )
 }
 
+function Test-IsWindowsStorePythonAlias {
+    param([string]$Path)
+
+    return (Test-IsWindowsPlatform) -and ($Path -like '*\Microsoft\WindowsApps\python*.exe')
+}
+
 function Resolve-McpPythonCommand {
     foreach ($commandName in @('python3', 'python')) {
-        $pythonCommand = Get-Command $commandName -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($pythonCommand -and -not [string]::IsNullOrWhiteSpace($pythonCommand.Source)) {
-            return $pythonCommand.Source
+        $pythonCommands = Get-Command $commandName -All -CommandType Application -ErrorAction SilentlyContinue
+        foreach ($pythonCommand in $pythonCommands) {
+            if ($pythonCommand -and -not [string]::IsNullOrWhiteSpace($pythonCommand.Source) -and -not (Test-IsWindowsStorePythonAlias $pythonCommand.Source)) {
+                return $pythonCommand.Source
+            }
         }
     }
 
@@ -157,6 +165,29 @@ function Remove-LegacyInstall {
     Remove-PathBestEffort -Path (Join-Path $CodexHome "plugins/cache/$legacyMarketplace")
 }
 
+$stableMcpServerName = 'antigravity_bridge_codex'
+
+function Register-StableMcpServer {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$CodexExe,
+
+        [Parameter(Mandatory = $true)]
+        [string]$PluginRoot
+    )
+
+    $serverPath = Join-Path $PluginRoot 'mcp/antigravity_bridge_server.py'
+    if (-not (Test-Path -LiteralPath $serverPath)) {
+        Write-Warning "Skipping stable MCP registration because $serverPath is missing."
+        return
+    }
+
+    $pythonCommand = Resolve-McpPythonCommand
+    Write-Host "Registering stable MCP server $stableMcpServerName with $CodexExe"
+    Invoke-NativeBestEffort -FilePath $CodexExe -Arguments @('mcp', 'remove', $stableMcpServerName)
+    Invoke-NativeOrThrow -FilePath $CodexExe -Arguments @('mcp', 'add', $stableMcpServerName, '--', $pythonCommand, $serverPath)
+}
+
 function Set-InstalledMcpInterpreter {
     param(
         [Parameter(Mandatory = $true)]
@@ -193,7 +224,17 @@ $skillRoot = Join-Path $codexHome 'skills/antigravity-bridge-codex'
 $marketplaceRoot = Join-Path $codexHome 'local-marketplaces/antigravity-bridge-codex'
 $marketplaceManifestPath = Join-Path $marketplaceRoot '.agents/plugins/marketplace.json'
 $pluginRoot = Join-Path $marketplaceRoot 'plugins/antigravity-bridge-codex'
-$pluginSkillRoot = Join-Path $pluginRoot 'skills/antigravity-bridge-codex'
+$pluginItems = @(
+    '.codex-plugin',
+    'SKILL.md',
+    'agents',
+    'assets',
+    'references',
+    'scripts',
+    'skills',
+    'mcp',
+    '.mcp.json'
+)
 $repoPluginManifestPath = Join-Path $sourceRoot '.codex-plugin/plugin.json'
 $installedPluginManifestPath = Join-Path $pluginRoot '.codex-plugin/plugin.json'
 
@@ -224,19 +265,12 @@ if (-not (Test-Path -LiteralPath $repoPluginManifestPath)) {
 }
 
 Write-Host "Syncing local plugin package to $pluginRoot"
-New-Item -ItemType Directory -Path $pluginSkillRoot -Force | Out-Null
+New-Item -ItemType Directory -Path $pluginRoot -Force | Out-Null
 
-Copy-FreshItem -SourcePath (Join-Path $sourceRoot '.codex-plugin') -DestinationPath (Join-Path $pluginRoot '.codex-plugin')
-Copy-FreshItem -SourcePath (Join-Path $sourceRoot '.mcp.json') -DestinationPath (Join-Path $pluginRoot '.mcp.json')
-Copy-FreshItem -SourcePath (Join-Path $sourceRoot 'assets') -DestinationPath (Join-Path $pluginRoot 'assets')
-Copy-FreshItem -SourcePath (Join-Path $sourceRoot 'mcp') -DestinationPath (Join-Path $pluginRoot 'mcp')
-Copy-FreshItem -SourcePath (Join-Path $sourceRoot 'scripts') -DestinationPath (Join-Path $pluginRoot 'scripts')
-Set-InstalledMcpInterpreter -ManifestPath (Join-Path $pluginRoot '.mcp.json')
-
-foreach ($item in $skillItems) {
-    Copy-FreshItem -SourcePath (Join-Path $sourceRoot $item) -DestinationPath (Join-Path $pluginSkillRoot $item)
+foreach ($item in $pluginItems) {
+    Copy-FreshItem -SourcePath (Join-Path $sourceRoot $item) -DestinationPath (Join-Path $pluginRoot $item)
 }
-Set-InstalledMcpInterpreter -ManifestPath (Join-Path $pluginSkillRoot '.mcp.json')
+Set-InstalledMcpInterpreter -ManifestPath (Join-Path $pluginRoot '.mcp.json')
 
 $pluginManifest = Get-Content -LiteralPath $installedPluginManifestPath -Raw | ConvertFrom-Json
 $pluginManifest.version = '0.1.0+codex.' + (Get-Date -Format 'yyyyMMddHHmmss')
@@ -274,5 +308,6 @@ Write-Host "Registering marketplace with $codexExe"
 Invoke-NativeOrThrow -FilePath $codexExe -Arguments @('plugin', 'marketplace', 'add', $marketplaceRoot)
 Write-Host 'Installing or refreshing local plugin antigravity-bridge-codex@antigravity-bridge-codex-local'
 Invoke-NativeOrThrow -FilePath $codexExe -Arguments @('plugin', 'add', 'antigravity-bridge-codex@antigravity-bridge-codex-local')
+Register-StableMcpServer -CodexExe $codexExe -PluginRoot $pluginRoot
 
 Write-Host 'Install completed.'

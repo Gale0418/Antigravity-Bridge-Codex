@@ -48,6 +48,16 @@ if ($manifest.bundledContentVariant -ne 'legacy-mcp') {
     throw "Unexpected bundled content variant: $($manifest.bundledContentVariant)"
 }
 
+$pluginSkillsRoot = Join-Path $repoRoot ($manifest.skills -replace '^\./', '')
+$pluginSkillManifestPath = Join-Path $pluginSkillsRoot 'antigravity-bridge-codex\SKILL.md'
+if (-not (Test-Path -LiteralPath $pluginSkillManifestPath)) {
+    throw "Plugin skills path must contain antigravity-bridge-codex/SKILL.md: $pluginSkillManifestPath"
+}
+$pluginSkillText = Get-Content -LiteralPath $pluginSkillManifestPath -Raw
+if ($pluginSkillText -notmatch '\.\./\.\./SKILL\.md') {
+    throw 'Plugin skill wrapper should delegate to the canonical root SKILL.md'
+}
+
 $mcpManifest = Get-Content -LiteralPath $mcpManifestPath -Raw | ConvertFrom-Json
 $bridgeServer = $mcpManifest.mcpServers.'antigravity-bridge-codex'
 if ($bridgeServer.type -ne 'stdio') {
@@ -55,6 +65,12 @@ if ($bridgeServer.type -ne 'stdio') {
 }
 if ([string]::IsNullOrWhiteSpace($bridgeServer.command)) {
     throw 'Expected MCP server command to be set'
+}
+if ($IsWindows -or $PSVersionTable.PSEdition -eq 'Desktop') {
+    $mcpCommand = Get-Command $bridgeServer.command -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($mcpCommand -and $mcpCommand.Source -like '*\WindowsApps\python3.exe') {
+        throw 'MCP manifest should not resolve to the Windows Store python3 alias on Windows; prefer python or installer-normalized absolute interpreter paths.'
+    }
 }
 
 $composerIconPath = Join-Path $repoRoot ($manifest.interface.composerIcon -replace '^\./', '')
@@ -100,6 +116,15 @@ if ($pythonInstallerText -notmatch 'normalize_mcp_manifest') {
 if ($pythonInstallerText -notmatch 'resolve_mcp_python_command') {
     throw 'Python installer should resolve a stable MCP Python command'
 }
+if ($pythonInstallerText -notmatch 'is_windows_store_python_alias') {
+    throw 'Python installer should skip Windows Store Python aliases'
+}
+if ($pythonInstallerText -notmatch 'STABLE_MCP_SERVER_NAME = "antigravity_bridge_codex"') {
+    throw 'Python installer should register the stable user MCP server name'
+}
+if ($pythonInstallerText -notmatch '"mcp",\s*"add"') {
+    throw 'Python installer should add a stable user MCP server'
+}
 
 $powershellInstallerText = Get-Content -LiteralPath $powershellInstallerPath -Raw
 if ($powershellInstallerText -notmatch "'mcp'") {
@@ -116,6 +141,15 @@ if ($powershellInstallerText -notmatch 'Set-InstalledMcpInterpreter') {
 }
 if ($powershellInstallerText -notmatch 'Resolve-McpPythonCommand') {
     throw 'PowerShell installer should resolve a stable MCP Python command'
+}
+if ($powershellInstallerText -notmatch 'Test-IsWindowsStorePythonAlias') {
+    throw 'PowerShell installer should skip Windows Store Python aliases'
+}
+if ($powershellInstallerText -notmatch "stableMcpServerName = 'antigravity_bridge_codex'") {
+    throw 'PowerShell installer should register the stable user MCP server name'
+}
+if ($powershellInstallerText -notmatch "'mcp', 'add'") {
+    throw 'PowerShell installer should add a stable user MCP server'
 }
 
 Write-Host 'PASS: plugin packaging metadata looks correct'
