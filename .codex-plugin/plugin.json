@@ -33,6 +33,7 @@
   "version": "0.1.0",
   "name": "antigravity-bridge-codex",
   "mcpServers": "./.mcp.json",
+  "bundledContentVariant": "legacy-mcp",
   "skills": "./skills/",
   "description": "Bridge Codex with a locally logged-in Antigravity Gemini session.",
   "author": {

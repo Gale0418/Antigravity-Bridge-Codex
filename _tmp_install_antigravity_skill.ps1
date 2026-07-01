@@ -103,6 +103,31 @@ function Get-LegacyPluginName {
     return (('antigravity-', 'gemini', '-bridge') -join '')
 }
 
+function Test-IsWindowsPlatform {
+    if ($PSVersionTable.PSEdition -eq 'Desktop') {
+        return $true
+    }
+
+    return [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform(
+        [System.Runtime.InteropServices.OSPlatform]::Windows
+    )
+}
+
+function Resolve-McpPythonCommand {
+    foreach ($commandName in @('python3', 'python')) {
+        $pythonCommand = Get-Command $commandName -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($pythonCommand -and -not [string]::IsNullOrWhiteSpace($pythonCommand.Source)) {
+            return $pythonCommand.Source
+        }
+    }
+
+    if (Test-IsWindowsPlatform) {
+        return 'python'
+    }
+
+    return 'python3'
+}
+
 function Remove-PathBestEffort {
     param([Parameter(Mandatory = $true)][string]$Path)
 
@@ -152,8 +177,8 @@ function Set-InstalledMcpInterpreter {
         $server | Add-Member -NotePropertyName type -NotePropertyValue 'stdio'
     }
 
-    if ($IsWindows -and $server.command -eq 'python3') {
-        $server.command = 'python'
+    if ($server.command -in @('python3', 'python')) {
+        $server.command = Resolve-McpPythonCommand
     }
 
     $manifest | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $ManifestPath -Encoding utf8

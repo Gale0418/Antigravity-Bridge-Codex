@@ -44,6 +44,9 @@ if ($manifest.skills -ne './skills/') {
 if ($manifest.mcpServers -ne './.mcp.json') {
     throw "Unexpected MCP servers path: $($manifest.mcpServers)"
 }
+if ($manifest.bundledContentVariant -ne 'legacy-mcp') {
+    throw "Unexpected bundled content variant: $($manifest.bundledContentVariant)"
+}
 
 $mcpManifest = Get-Content -LiteralPath $mcpManifestPath -Raw | ConvertFrom-Json
 $bridgeServer = $mcpManifest.mcpServers.'antigravity-bridge-codex'
@@ -74,6 +77,12 @@ if ($packagingText -notmatch 'macOS') {
 if ($packagingText -notmatch '\.mcp\.json') {
     throw 'Packaging docs should mention MCP manifest packaging'
 }
+if ($packagingText -notmatch 'legacy-mcp') {
+    throw 'Packaging docs should document the legacy-mcp plugin variant'
+}
+if ($packagingText -notmatch 'absolute Python') {
+    throw 'Packaging docs should document absolute Python command normalization'
+}
 
 $pythonInstallerText = Get-Content -LiteralPath $pythonInstallerPath -Raw
 if ($pythonInstallerText -notmatch '"mcp"') {
@@ -88,6 +97,9 @@ if ($pythonInstallerText -match $legacyName) {
 if ($pythonInstallerText -notmatch 'normalize_mcp_manifest') {
     throw 'Python installer should normalize the installed MCP manifest'
 }
+if ($pythonInstallerText -notmatch 'resolve_mcp_python_command') {
+    throw 'Python installer should resolve a stable MCP Python command'
+}
 
 $powershellInstallerText = Get-Content -LiteralPath $powershellInstallerPath -Raw
 if ($powershellInstallerText -notmatch "'mcp'") {
@@ -101,6 +113,9 @@ if ($powershellInstallerText -match $legacyName) {
 }
 if ($powershellInstallerText -notmatch 'Set-InstalledMcpInterpreter') {
     throw 'PowerShell installer should normalize the installed MCP manifest'
+}
+if ($powershellInstallerText -notmatch 'Resolve-McpPythonCommand') {
+    throw 'PowerShell installer should resolve a stable MCP Python command'
 }
 
 Write-Host 'PASS: plugin packaging metadata looks correct'

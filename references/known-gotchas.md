@@ -114,6 +114,11 @@ Default behavior:
 
 A Codex thread can lose a skill-only bridge capability after long runs, context compaction, or tool snapshot refreshes. That does not prove Antigravity is down.
 
+For plugin-based MCP loading, two package details are easy to miss:
+
+- the plugin manifest must carry `bundledContentVariant: legacy-mcp`, matching Codex-bundled MCP plugins
+- installed `.mcp.json` copies should use an absolute Python command when possible, because GUI-launched Codex sessions may not inherit the same PATH as a terminal
+
 Recovery order:
 
 - rediscover the live Antigravity session from logs

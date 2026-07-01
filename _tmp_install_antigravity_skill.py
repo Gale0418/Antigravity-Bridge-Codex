@@ -27,6 +27,20 @@ def legacy_plugin_name() -> str:
     return "antigravity-" + "gemini" + "-bridge"
 
 
+def resolve_mcp_python_command() -> str:
+    if sys.executable:
+        executable = Path(sys.executable).resolve()
+        if executable.exists():
+            return str(executable)
+
+    for name in ("python3", "python"):
+        resolved = shutil.which(name)
+        if resolved:
+            return resolved
+
+    return "python" if os.name == "nt" else "python3"
+
+
 def normalize_mcp_manifest(manifest_path: Path) -> None:
     if not manifest_path.exists():
         return
@@ -37,8 +51,8 @@ def normalize_mcp_manifest(manifest_path: Path) -> None:
         return
 
     server.setdefault("type", "stdio")
-    if os.name == "nt" and server.get("command") == "python3":
-        server["command"] = "python"
+    if server.get("command") in {"python3", "python"}:
+        server["command"] = resolve_mcp_python_command()
 
     manifest_path.write_text(
         json.dumps(manifest, indent=2, ensure_ascii=False) + "\n",

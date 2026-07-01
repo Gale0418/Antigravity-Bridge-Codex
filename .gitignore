@@ -1,3 +1,8 @@
 .gemini/
 MissionCenter/
 docs/
+__pycache__/
+*.py[cod]
+.tmp/
+.tmp_*/
+.tmp_python_probe.txt

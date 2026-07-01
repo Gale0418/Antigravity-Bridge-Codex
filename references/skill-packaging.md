@@ -28,6 +28,8 @@ Re-running either installer updates both the personal skill copy and the local p
 
 ## Tool Packaging
 
-The plugin manifest must keep `mcpServers` pointed at `./.mcp.json`, and installers must copy both `.mcp.json` and `mcp/` into the plugin root. The personal skill copy also receives those files so a future tool loader or manual recovery command can use the same package contents.
+The plugin manifest must keep `mcpServers` pointed at `./.mcp.json` and declare `bundledContentVariant` as `legacy-mcp`, matching Codex-bundled MCP plugins so the app treats the package as tool-capable instead of skill-only. Installers must copy both `.mcp.json` and `mcp/` into the plugin root. The personal skill copy also receives those files so a future tool loader or manual recovery command can use the same package contents.
+
+Source `.mcp.json` stays portable with `python3`, but installers normalize installed copies to an absolute Python command when possible. This avoids GUI-launched Codex threads failing to spawn the stdio server because their PATH differs from an interactive terminal.
 
 The MCP server intentionally shells no external dependency; it imports `scripts/antigravity_bridge.py` and uses the local Antigravity logs plus localhost RPC. Keep default outputs compact and require an explicit trajectory request for raw debug payloads.
