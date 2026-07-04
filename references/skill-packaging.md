@@ -23,8 +23,8 @@ Use one of these installers to do both of these:
 - sync a local plugin marketplace package under `~/.codex/local-marketplaces/antigravity-bridge-codex`, then register or refresh the plugin so the Codex UI can use the packaged icon metadata
 - register a stable user-level MCP server named `antigravity_bridge_codex` that points at the marketplace package, so new Codex threads can expose bridge tools through the normal `[mcp_servers]` path even if plugin-provided MCP tools are not mounted
 
-- macOS or any environment without PowerShell 7: run `python3 _tmp_install_antigravity_skill.py`
-- Windows or PowerShell 7 environments: run `_tmp_install_antigravity_skill.ps1`
+- macOS or any environment without PowerShell 7: run `python3 scripts/install.py`
+- Windows or PowerShell 7 environments: run `pwsh scripts/install.ps1`
 
 Re-running either installer updates both the personal skill copy and the local plugin package from this repository. The local plugin package includes both the standard `skills/` wrapper and the root canonical skill resources on Windows and macOS.
 

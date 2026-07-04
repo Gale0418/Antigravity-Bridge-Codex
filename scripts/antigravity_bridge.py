@@ -128,6 +128,13 @@ def default_log_path_candidates(
                 main_candidates.append(directory / "main.log")
                 language_candidates.append(directory / "ls-main.log")
                 language_candidates.extend(sorted(directory.glob("ls-main.*.log"), key=lambda p: p.name, reverse=True))
+    elif resolved_platform == "Linux":
+        config_base = home / ".config" / "Antigravity" / "logs"
+        main_candidates.append(config_base / "main.log")
+        language_candidates.append(config_base / "language_server.log")
+        local_base = home / ".local" / "share" / "Antigravity" / "logs"
+        main_candidates.append(local_base / "main.log")
+        language_candidates.append(local_base / "language_server.log")
 
     return {
         "platform": resolved_platform,

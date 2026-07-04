@@ -2,7 +2,7 @@
   "mcpServers": {
     "antigravity-bridge-codex": {
       "type": "stdio",
-      "command": "python3",
+      "command": "python",
       "args": [
         "./mcp/antigravity_bridge_server.py"
       ],

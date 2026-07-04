@@ -147,6 +147,12 @@ function Get-AntigravityDefaultLogPathCandidates {
                 }
             }
         }
+        'Linux' {
+            $mainCandidates.Add((Join-Path $HomeDirectory '.config/Antigravity/logs/main.log'))
+            $languageCandidates.Add((Join-Path $HomeDirectory '.config/Antigravity/logs/language_server.log'))
+            $mainCandidates.Add((Join-Path $HomeDirectory '.local/share/Antigravity/logs/main.log'))
+            $languageCandidates.Add((Join-Path $HomeDirectory '.local/share/Antigravity/logs/language_server.log'))
+        }
     }
 
     [pscustomobject]@{

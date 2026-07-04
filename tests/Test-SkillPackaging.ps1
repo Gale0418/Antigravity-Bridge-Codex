@@ -2,8 +2,8 @@ $ErrorActionPreference = 'Stop'
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $pluginManifestPath = Join-Path $repoRoot '.codex-plugin\plugin.json'
-$pythonInstallerPath = Join-Path $repoRoot '_tmp_install_antigravity_skill.py'
-$powershellInstallerPath = Join-Path $repoRoot '_tmp_install_antigravity_skill.ps1'
+$pythonInstallerPath = Join-Path $repoRoot 'scripts\install.py'
+$powershellInstallerPath = Join-Path $repoRoot 'scripts\install.ps1'
 $packagingDocPath = Join-Path $repoRoot 'references\skill-packaging.md'
 $mcpManifestPath = Join-Path $repoRoot '.mcp.json'
 $mcpServerPath = Join-Path $repoRoot 'mcp\antigravity_bridge_server.py'
@@ -84,7 +84,7 @@ if (-not (Test-Path -LiteralPath $logoPath)) {
 }
 
 $packagingText = Get-Content -LiteralPath $packagingDocPath -Raw
-if ($packagingText -notmatch '_tmp_install_antigravity_skill.py') {
+if ($packagingText -notmatch 'install\.py') {
     throw 'Packaging docs should mention the Python installer for macOS/local non-PowerShell setups'
 }
 if ($packagingText -notmatch 'macOS') {

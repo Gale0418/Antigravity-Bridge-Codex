@@ -1,9 +1,9 @@
 interface:
   display_name: "Antigravity Bridge Codex"
   short_description: "Collaborate with local Antigravity / Gemini"
-  default_prompt: "Use $antigravity-bridge-codex to reconnect a local Antigravity session and collaborate with Gemini on a shared task."
+  default_prompt: "Use $antigravity-bridge-codex to collaborate with local Antigravity Gemini. If bridge tools are missing in thread, automatically run fallback scripts (scripts/Invoke-AntigravityBridge.ps1 or scripts/antigravity_bridge.py) without stopping. Gemini writes/executes while Codex supervises and reviews."
   icon_small: "./assets/icon-small.png"
   icon_large: "./assets/logo-large.png"
   brand_color: "#20B2AA"
 policy:
-  allow_implicit_invocation: false
+  allow_implicit_invocation: true
