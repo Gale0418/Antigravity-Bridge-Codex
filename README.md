@@ -1,6 +1,6 @@
 # Antigravity Bridge Codex
 
-[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)]()
 [![AI Integration](https://img.shields.io/badge/AI-Codex%20%2B%20Gemini-orange.svg)]()
 
@@ -134,4 +134,4 @@ pytest tests/
 
 ## License
 
-This project is licensed under the [Apache 2.0 License](LICENSE).
+This project is licensed under the [MIT License](LICENSE).

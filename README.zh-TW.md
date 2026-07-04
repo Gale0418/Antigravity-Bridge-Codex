@@ -1,6 +1,6 @@
 # Antigravity Bridge Codex 雙 AI 協作橋接套件
 
-[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)]()
 [![AI Integration](https://img.shields.io/badge/AI-Codex%20%2B%20Gemini-orange.svg)]()
 
@@ -125,4 +125,4 @@ pytest tests/
 
 ## 📄 授權條款
 
-本專案採用 [Apache 2.0 License](LICENSE) 條款開源發布。
+本專案採用 [MIT License](LICENSE) 條款開源發布。
