@@ -9,15 +9,24 @@ import sys
 import time
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 MODULE_PATH = REPO_ROOT / "scripts" / "antigravity_bridge.py"
+INSTALLER_PATH = REPO_ROOT / "scripts" / "install.py"
 
 spec = importlib.util.spec_from_file_location("antigravity_bridge", MODULE_PATH)
 bridge = importlib.util.module_from_spec(spec)
 sys.modules[spec.name] = bridge
 spec.loader.exec_module(bridge)
 
+
+def load_installer_module():
+    installer_spec = importlib.util.spec_from_file_location("antigravity_installer", INSTALLER_PATH)
+    installer = importlib.util.module_from_spec(installer_spec)
+    sys.modules[installer_spec.name] = installer
+    installer_spec.loader.exec_module(installer)
+    return installer
 
 TEST_TMP_ROOT = REPO_ROOT / ".tmp" / "python-tests"
 
@@ -31,6 +40,30 @@ def fresh_test_dir(name: str) -> Path:
 
 
 class AntigravityBridgePythonTests(unittest.TestCase):
+    def test_installer_copies_skill_and_plugin_payload_to_isolated_codex_home(self):
+        installer = load_installer_module()
+        codex_home = fresh_test_dir("installer-codex-home")
+
+        with patch.dict(os.environ, {"CODEX_HOME": str(codex_home)}), patch.object(
+            installer, "get_codex_executable", return_value=None
+        ):
+            self.assertEqual(installer.main(), 0)
+
+        skill_root = codex_home / "skills" / "antigravity-bridge-codex"
+        plugin_root = (
+            codex_home
+            / "local-marketplaces"
+            / "antigravity-bridge-codex"
+            / "plugins"
+            / "antigravity-bridge-codex"
+        )
+        self.assertTrue((skill_root / "SKILL.md").is_file())
+        self.assertTrue((plugin_root / "SKILL.md").is_file())
+        normalized_skill_manifest = json.loads((skill_root / ".mcp.json").read_text(encoding="utf-8"))
+        self.assertEqual(
+            normalized_skill_manifest["mcpServers"]["antigravity-bridge-codex"]["command"],
+            str(Path(sys.executable).resolve()),
+        )
     def test_session_parser_extracts_csrf_ports_pid(self):
         main_log = """
         argv --csrf_token 11111111-2222-3333-4444-555555555555

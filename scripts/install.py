@@ -8,6 +8,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 from datetime import datetime
 from pathlib import Path
 
@@ -71,10 +72,19 @@ def normalize_mcp_manifest(manifest_path: Path) -> None:
     if server.get("command") in {"python3", "python"}:
         server["command"] = resolve_mcp_python_command()
 
-    manifest_path.write_text(
-        json.dumps(manifest, indent=2, ensure_ascii=False) + "\n",
-        encoding="utf-8",
+    file_descriptor, temporary_name = tempfile.mkstemp(
+        prefix=f"{manifest_path.name}.",
+        suffix=".tmp",
+        dir=manifest_path.parent,
     )
+    temporary_path = Path(temporary_name)
+    try:
+        with os.fdopen(file_descriptor, "w", encoding="utf-8", newline="\n") as temporary_file:
+            json.dump(manifest, temporary_file, indent=2, ensure_ascii=False)
+            temporary_file.write("\n")
+        os.replace(temporary_path, manifest_path)
+    finally:
+        temporary_path.unlink(missing_ok=True)
 
 
 def copy_fresh_item(source: Path, destination: Path) -> None:
@@ -172,7 +182,7 @@ def register_stable_mcp_server(codex_executable: Path, plugin_root: Path) -> Non
 
 
 def main() -> int:
-    source_root = Path(__file__).resolve().parent
+    source_root = Path(__file__).resolve().parent.parent
     codex_home = get_codex_home()
     codex_executable = get_codex_executable(codex_home)
     remove_legacy_install(codex_home, codex_executable)
