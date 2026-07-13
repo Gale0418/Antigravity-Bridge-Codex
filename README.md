@@ -16,7 +16,7 @@ With this bridge, Codex acts as a supervisor and reviewer while delegating execu
 - **Bi-Directional AI Collaboration**: Allows Codex to spawn cascades, send prompts, inspect trajectories, and receive structured responses from local Gemini.
 - **Multi-Platform Support**: Works natively on PowerShell 7+ and Python 3.8+ on Windows, macOS, and Linux.
 - **Model Auto-Fallback**: Intelligent fallback system matching active Antigravity model identifiers and internal enum placeholders (`MODEL_PLACEHOLDER_M*`).
-- **MCP Server Packaging**: Exposes bridge tools directly as an Model Context Protocol (MCP) server for compatible hosts.
+- **MCP Server Packaging**: Exposes bridge tools directly as a Model Context Protocol (MCP) server for compatible hosts.
 - **Privacy & Least Privilege**: Works entirely over local loopback (`127.0.0.1`), respecting local workspace directory permissions.
 
 ---
@@ -77,7 +77,7 @@ python3 scripts/antigravity_bridge.py send --prompt "Analyze main.py for bugs" -
 
 ---
 
-## Repository Structure
+## Repository Structure (Illustrative)
 
 ```text
 antigravity-bridge-codex/
@@ -97,6 +97,9 @@ antigravity-bridge-codex/
 │   ├── antigravity_bridge.py            # Python bridge CLI & library
 │   ├── install.ps1                      # PowerShell installer
 │   └── install.py                       # Python installer
+├── skills/
+│   └── antigravity-bridge-codex/
+│       └── SKILL.md         # Plugin skill wrapper to the root SKILL.md
 └── tests/
     ├── Test-Discover-AntigravitySession.ps1
     ├── Test-Invoke-AntigravityBridge.ps1

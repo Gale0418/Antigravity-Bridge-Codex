@@ -76,7 +76,7 @@ python3 scripts/antigravity_bridge.py send --prompt "檢查 main.py 是否有程
 
 ---
 
-## 📂 專案目錄結構
+## 📂 專案目錄結構 (示意)
 
 ```text
 antigravity-bridge-codex/
@@ -96,6 +96,9 @@ antigravity-bridge-codex/
 │   ├── antigravity_bridge.py            # Python 橋接主程式與庫
 │   ├── install.ps1                      # PowerShell 安裝腳本
 │   └── install.py                       # Python 安裝腳本
+├── skills/
+│   └── antigravity-bridge-codex/
+│       └── SKILL.md         # 外掛 Skill 封裝，指向根目錄 SKILL.md
 └── tests/
     ├── Test-Discover-AntigravitySession.ps1
     ├── Test-Invoke-AntigravityBridge.ps1

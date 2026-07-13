@@ -322,10 +322,18 @@ def invoke_rpc(method: str, body: dict[str, Any], session: AntigravitySession | 
         with urllib.request.urlopen(request, timeout=30) as response:
             data = response.read()
     except urllib.error.HTTPError as exc:
-        detail = exc.read().decode("utf-8", errors="replace")
-        raise RuntimeError(f"Antigravity RPC {method} failed with HTTP {exc.code}: {detail}") from exc
-    except urllib.error.URLError as exc:
-        raise RuntimeError(f"Antigravity RPC {method} failed: {exc.reason}") from exc
+        if exc.code in (401, 403):
+            message = "session expired or is not authorized; rediscover the local session"
+        else:
+            message = f"HTTP {exc.code}"
+        raise RuntimeError(f"Antigravity RPC {method} failed: {message}") from exc
+    except (urllib.error.URLError, TimeoutError) as exc:
+        reason = getattr(exc, "reason", None)
+        if isinstance(reason, TimeoutError) or isinstance(exc, TimeoutError):
+            message = "request timed out; check that Antigravity is running and retry"
+        else:
+            message = "local session is unavailable; rediscover the session and retry"
+        raise RuntimeError(f"Antigravity RPC {method} failed: {message}") from exc
 
     if not data:
         return {}
@@ -425,7 +433,10 @@ def wait_trajectory_outcome(
         last_error = latest_error_text(last_trajectory)
         last_combined = "\n".join([last_response, last_error])
 
-        if compiled.search(last_combined):
+        if last_error:
+            raise RuntimeError(f"Cascade {cascade_id} failed with error: {last_error}")
+
+        if compiled.search(last_response):
             return {
                 "cascadeId": cascade_id,
                 "pattern": pattern,

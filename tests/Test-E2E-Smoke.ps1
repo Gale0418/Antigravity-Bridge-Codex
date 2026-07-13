@@ -24,7 +24,6 @@ try {
     Write-Host "  Session Discovered!" -ForegroundColor Green
     Write-Host "  - HTTPS Port: $($session.HttpsPort)" -ForegroundColor Gray
     Write-Host "  - Process ID: $($session.ProcessId)" -ForegroundColor Gray
-    Write-Host "  - CSRF Token: $($session.CsrfToken.Substring(0, 8))..." -ForegroundColor Gray
 } catch {
     Write-Host "  [NOTICE] Local Antigravity instance is not currently running. Skipping live RPC call." -ForegroundColor DarkYellow
     Write-Host "  Discovery logic test PASSED." -ForegroundColor Green
@@ -47,7 +46,7 @@ if (-not $SkipRpcMessage -and $session) {
         $cascade = New-AntigravityCascade -WorkspacePaths @($PWD.ProviderPath) -Session $session
         Write-Host "  Test Cascade Created Successfully! CascadeId: $($cascade.CascadeId)" -ForegroundColor Green
     } catch {
-        Write-Host "  Cascade creation warning: $_" -ForegroundColor Yellow
+        throw "Cascade creation failed: $($_.Exception.Message)"
     }
 }
 

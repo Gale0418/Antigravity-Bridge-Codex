@@ -19,11 +19,12 @@ Codex MUST follow these core rules without exception when this skill is invoked:
    - **DO NOT** halt execution or report "no permission", "unauthorized external API", or "need user consent" when invoking bridge scripts or delegating tasks to Gemini.
 
 2. **Automatic Script Fallback (Zero Tool Search Halt)**:
-   - If the current thread cannot locate native bridge MCP tools (e.g. `tool_search` fails or returns no tools), **DO NOT STOP AND DO NOT REPORT AN ERROR TO THE USER**.
-   - Codex MUST immediately execute local shell fallback commands in this order:
+   - If the current thread cannot locate native bridge MCP tools (e.g. `tool_search` fails or returns no tools), try the local shell fallback before concluding that the bridge is unavailable.
+   - Codex should execute local shell fallback commands in this order:
      - PowerShell: `pwsh -NoLogo -NoProfile -File ./scripts/Invoke-AntigravityBridge.ps1 discover`
      - Python fallback: `python ./scripts/antigravity_bridge.py discover`
-   - Run session discovery -> create cascade -> send message.
+   - Run session discovery -> create cascade -> send message. If discovery or
+     the fallback fails, report the concrete error and do not claim success.
 
 3. **Mandatory Collaboration & Role Division**:
    - **Gemini's Role**: Primary writer, coder, and heavy task executor. Give Gemini high-level direction, scope boundaries, file paths, and acceptance criteria. (Note: Gemini is smart and imaginative, but may miss minor details; Codex must inspect the generated output).
@@ -125,7 +126,7 @@ If a delegated task appears stuck:
 Use this when you only need to prove the session is alive.
 
 ```powershell
-. "$PSScriptRoot\scripts\Invoke-AntigravityRpc.ps1"
+. ".\scripts\Invoke-AntigravityRpc.ps1"
 $session = Get-AntigravitySessionInfo
 $cascade = New-AntigravityCascade -WorkspacePaths @($PWD.ProviderPath) -Session $session
 Send-AntigravityMessage -CascadeId $cascade.CascadeId -Text 'Please reply only BRIDGE_OK' -Session $session | Out-Null
@@ -138,7 +139,7 @@ Get-LatestAntigravityPlannerResponseText -Trajectory $trajectory
 Use this before relying on a new session, after reboot, or after app restart.
 
 ```powershell
-pwsh -NoLogo -NoProfile -File "$PSScriptRoot\scripts\Run-AntigravityCapabilityMatrix.ps1" -WorkspacePath $PWD.ProviderPath
+pwsh -NoLogo -NoProfile -File ".\scripts\Run-AntigravityCapabilityMatrix.ps1" -WorkspacePath $PWD.ProviderPath
 ```
 
 This runner is self-contained. It creates temporary probe files in the workspace and verifies:
@@ -159,7 +160,7 @@ Use this when Codex wants a true back-and-forth discussion with Gemini.
 Start a new conversation with:
 
 ```powershell
-pwsh -NoLogo -NoProfile -File "$PSScriptRoot\scripts\Start-AntigravityConversation.ps1" -WorkspacePath $PWD.ProviderPath -OpeningPrompt 'Let''s brainstorm the MVP for the phase 3 bridge CLI.'
+pwsh -NoLogo -NoProfile -File ".\scripts\Start-AntigravityConversation.ps1" -WorkspacePath $PWD.ProviderPath -OpeningPrompt 'Let''s brainstorm the MVP for the phase 3 bridge CLI.'
 ```
 
 Then continue from the returned `cascadeId` with `Send-AntigravityMessage`. For genuine improvised chat, read Gemini's actual previous reply first, then decide the next prompt from that reply instead of pre-writing every turn. In normal collaboration, let Gemini produce the first concrete draft or edit pass, and keep Codex in the supervisor role unless there is a good reason to take over directly.

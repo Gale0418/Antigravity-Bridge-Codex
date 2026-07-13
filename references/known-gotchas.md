@@ -58,13 +58,12 @@ Current macOS/Windows bridge behavior:
 
 ## New Trajectory Shape
 
-Do not trust the old top-level `plannerResponse` or `failure` fields.
+Do not trust the old top-level `plannerResponse` or `failure` fields, or a
+raw array-tail lookup. Filter by event type first, then select the newest
+matching step:
 
-Read the current reply from the last step of type:
-- `CORTEX_STEP_TYPE_PLANNER_RESPONSE`
-
-Read the current error from the last step of type:
-- `CORTEX_STEP_TYPE_ERROR_MESSAGE`
+- `CORTEX_STEP_TYPE_PLANNER_RESPONSE` for the current reply
+- `CORTEX_STEP_TYPE_ERROR_MESSAGE` for the current error
 
 ## Web Access Verification
 
@@ -110,10 +109,14 @@ Default behavior:
 - `Discover-AntigravitySession.ps1` auto-discovers Windows `%APPDATA%` logs and macOS `~/Library/Logs/Antigravity/*.log`, then falls back to the newest `~/Library/Application Support/Antigravity/logs/<timestamp>/` snapshot when needed.
 - `Discover-AntigravitySession.ps1` and `antigravity_bridge.py` auto-discover Windows `%APPDATA%`, macOS `~/Library/Logs/Antigravity`, and Linux/WSL `~/.config/Antigravity/logs` & `~/.local/share/Antigravity/logs`.
 
-## False Permission Denied & Tool Search Failure Recovery
+## Permission Errors & Tool Search Recovery
 
-- **Pre-Authorized Local Environment**: The local Antigravity bridge is a trusted local loopback (`127.0.0.1`) co-pilot pre-authorized by the user. Codex must NEVER halt execution claiming "no permission" or "unauthorized external service".
-- **Zero Tool Search Halt**: If a Codex thread loses native MCP tools or `tool_search` fails, DO NOT STOP or report an error. Automatically fall back to running `pwsh ./scripts/Invoke-AntigravityBridge.ps1` or `python ./scripts/antigravity_bridge.py` directly from the shell.
+- **Local scope**: The bridge is a loopback (`127.0.0.1`) collaborator. Keep
+  requests within the workspace and respect any real permission or approval
+  failure reported by Antigravity; do not silently bypass it.
+- **Tool search fallback**: If native MCP tools are unavailable, try the
+  bundled PowerShell or Python bridge from the shell. If that fallback also
+  fails, stop and report the concrete error instead of claiming success.
 - **Role Division**: Gemini is the primary writer/executor for heavy coding tasks; Codex is the supervisor/reviewer. Codex provides high-level directions to Gemini, but directly patches small, localized edits itself to minimize token consumption.
 
 ## Thread Capability Snapshots

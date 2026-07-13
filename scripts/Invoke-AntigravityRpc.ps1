@@ -409,6 +409,85 @@ function Get-LatestAntigravityErrorText {
     )
 }
 
+function Wait-AntigravityTrajectoryMatchResult {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$CascadeId,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Pattern,
+
+        [int]$TimeoutSeconds = 90,
+        [int]$PollIntervalSeconds = 3,
+        [psobject]$Session = (Get-AntigravitySessionInfo)
+    )
+
+    $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    $lastTrajectory = $null
+    $lastResponse = ''
+    $lastError = ''
+    $lastCombined = ''
+
+    do {
+        $lastTrajectory = Get-AntigravityTrajectory -CascadeId $CascadeId -Session $Session
+        $lastResponse = Get-LatestAntigravityPlannerResponseText -Trajectory $lastTrajectory
+        $lastError = Get-LatestAntigravityErrorText -Trajectory $lastTrajectory
+        $lastCombined = @($lastResponse, $lastError) -join "`n"
+
+        # A trajectory error is terminal.  Do not let a broad pattern (for
+        # example, (?s).+) turn an error response into a successful match.
+        if (-not [string]::IsNullOrWhiteSpace($lastError)) {
+            $stopwatch.Stop()
+            return [pscustomobject]@{
+                cascadeId = $CascadeId
+                pattern = $Pattern
+                matched = $false
+                timedOut = $false
+                trajectory = $lastTrajectory
+                response = $lastResponse
+                failure = $lastError
+                observedText = $lastCombined
+                elapsedSeconds = [math]::Round($stopwatch.Elapsed.TotalSeconds, 3)
+            }
+        }
+
+        if ($lastResponse -match $Pattern) {
+            $stopwatch.Stop()
+            return [pscustomobject]@{
+                cascadeId = $CascadeId
+                pattern = $Pattern
+                matched = $true
+                timedOut = $false
+                trajectory = $lastTrajectory
+                response = $lastResponse
+                failure = $lastError
+                observedText = $lastCombined
+                elapsedSeconds = [math]::Round($stopwatch.Elapsed.TotalSeconds, 3)
+            }
+        }
+
+        if ((Get-Date) -ge $deadline) {
+            break
+        }
+
+        Start-Sleep -Seconds $PollIntervalSeconds
+    } while ($true)
+
+    $stopwatch.Stop()
+    return [pscustomobject]@{
+        cascadeId = $CascadeId
+        pattern = $Pattern
+        matched = $false
+        timedOut = $true
+        trajectory = $lastTrajectory
+        response = $lastResponse
+        failure = $lastError
+        observedText = $lastCombined
+        elapsedSeconds = [math]::Round($stopwatch.Elapsed.TotalSeconds, 3)
+    }
+}
+
 function Wait-AntigravityTrajectoryOutcome {
     param(
         [Parameter(Mandatory = $true)]
@@ -422,47 +501,19 @@ function Wait-AntigravityTrajectoryOutcome {
         [psobject]$Session = (Get-AntigravitySessionInfo)
     )
 
-    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
-    $lastTrajectory = $null
-    $lastResponse = ''
-    $lastError = ''
-    $lastCombined = ''
-
-    do {
-        $lastTrajectory = Get-AntigravityTrajectory -CascadeId $CascadeId -Session $Session
-        $lastResponse = Get-LatestAntigravityPlannerResponseText -Trajectory $lastTrajectory
-        $lastError = Get-LatestAntigravityErrorText -Trajectory $lastTrajectory
-        $lastCombined = @($lastResponse, $lastError) -join "`n"
-
-        if ($lastCombined -match $Pattern) {
-            return [pscustomobject]@{
-                CascadeId = $CascadeId
-                Pattern = $Pattern
-                Matched = $true
-                TimedOut = $false
-                Trajectory = $lastTrajectory
-                Response = $lastResponse
-                Failure = $lastError
-                ObservedText = $lastCombined
-            }
-        }
-
-        if ((Get-Date) -ge $deadline) {
-            break
-        }
-
-        Start-Sleep -Seconds $PollIntervalSeconds
-    } while ($true)
-
+    # Keep the original helper's property casing and shape for existing
+    # callers while delegating all polling and terminal-state handling.
+    $result = Wait-AntigravityTrajectoryMatchResult -CascadeId $CascadeId -Pattern $Pattern -TimeoutSeconds $TimeoutSeconds -PollIntervalSeconds $PollIntervalSeconds -Session $Session
     return [pscustomobject]@{
-        CascadeId = $CascadeId
-        Pattern = $Pattern
-        Matched = $false
-        TimedOut = $true
-        Trajectory = $lastTrajectory
-        Response = $lastResponse
-        Failure = $lastError
-        ObservedText = $lastCombined
+        CascadeId = $result.cascadeId
+        Pattern = $result.pattern
+        Matched = $result.matched
+        TimedOut = $result.timedOut
+        Trajectory = $result.trajectory
+        Response = $result.response
+        Failure = $result.failure
+        ObservedText = $result.observedText
+        ElapsedSeconds = $result.elapsedSeconds
     }
 }
 
@@ -479,9 +530,13 @@ function Wait-AntigravityTrajectoryMatch {
         [psobject]$Session = (Get-AntigravitySessionInfo)
     )
 
-    $outcome = Wait-AntigravityTrajectoryOutcome -CascadeId $CascadeId -Pattern $Pattern -TimeoutSeconds $TimeoutSeconds -PollIntervalSeconds $PollIntervalSeconds -Session $Session
-    if ($outcome.Matched) {
+    $outcome = Wait-AntigravityTrajectoryMatchResult -CascadeId $CascadeId -Pattern $Pattern -TimeoutSeconds $TimeoutSeconds -PollIntervalSeconds $PollIntervalSeconds -Session $Session
+    if ($outcome.matched) {
         return $outcome.Trajectory
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace([string]$outcome.failure)) {
+        throw "Antigravity trajectory failed in cascade $($CascadeId): $($outcome.failure)"
     }
 
     throw "Timed out waiting for pattern $Pattern in cascade $CascadeId"

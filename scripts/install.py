@@ -13,15 +13,9 @@ from datetime import datetime
 from pathlib import Path
 
 
-SKILL_ITEMS = (
-    "SKILL.md",
-    "agents",
-    "assets",
-    "references",
-    "scripts",
-    "mcp",
-    ".mcp.json",
-)
+REQUIRED_SKILL_ITEMS = ("SKILL.md", "scripts", "mcp")
+OPTIONAL_SKILL_ITEMS = ("agents", "assets", "references", ".mcp.json")
+SKILL_ITEMS = REQUIRED_SKILL_ITEMS + OPTIONAL_SKILL_ITEMS
 PLUGIN_ITEMS = (
     ".codex-plugin",
     "SKILL.md",
@@ -34,6 +28,38 @@ PLUGIN_ITEMS = (
     ".mcp.json",
 )
 STABLE_MCP_SERVER_NAME = "antigravity_bridge_codex"
+
+
+def validate_source_items(source_root: Path, items: tuple[str, ...], label: str) -> None:
+    missing = [item for item in items if not (source_root / item).exists()]
+    if missing:
+        raise RuntimeError(f"Missing required {label} item(s): {', '.join(missing)}")
+
+
+def sync_items_transactional(source_root: Path, destination_root: Path, items: tuple[str, ...]) -> None:
+    """Stage a complete copy, restoring an existing install if copying fails."""
+    destination_root.parent.mkdir(parents=True, exist_ok=True)
+    stage = Path(tempfile.mkdtemp(prefix=f"stage-{destination_root.name}-", dir=destination_root.parent))
+    backup = None
+    try:
+        for item in items:
+            source = source_root / item
+            if source.exists():
+                copy_fresh_item(source, stage / item)
+        if destination_root.exists():
+            backup = Path(tempfile.mkdtemp(prefix=f"backup-{destination_root.name}-", dir=destination_root.parent))
+            shutil.rmtree(backup)
+            destination_root.replace(backup)
+        stage.replace(destination_root)
+    except Exception:
+        if backup is not None and backup.exists():
+            remove_path_best_effort(destination_root)
+            backup.replace(destination_root)
+        raise
+    finally:
+        remove_path_best_effort(stage)
+        if backup is not None:
+            remove_path_best_effort(backup)
 
 
 def legacy_plugin_name() -> str:
@@ -134,7 +160,10 @@ def run_native_or_throw(executable: Path, *arguments: str) -> None:
 
 def run_native_best_effort(executable: Path, *arguments: str) -> None:
     command = [str(executable), *arguments]
-    subprocess.run(command, check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    try:
+        subprocess.run(command, check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except OSError:
+        return
 
 
 def remove_path_best_effort(path: Path) -> None:
@@ -194,10 +223,9 @@ def main() -> int:
     repo_plugin_manifest_path = source_root / ".codex-plugin" / "plugin.json"
     installed_plugin_manifest_path = plugin_root / ".codex-plugin" / "plugin.json"
 
-    skill_root.mkdir(parents=True, exist_ok=True)
+    validate_source_items(source_root, REQUIRED_SKILL_ITEMS, "skill")
     print(f"Installing personal skill from {source_root} to {skill_root}")
-    for item in SKILL_ITEMS:
-        copy_fresh_item(source_root / item, skill_root / item)
+    sync_items_transactional(source_root, skill_root, SKILL_ITEMS)
     normalize_mcp_manifest(skill_root / ".mcp.json")
 
     if not repo_plugin_manifest_path.exists():
@@ -205,11 +233,9 @@ def main() -> int:
         print("Install completed.")
         return 0
 
+    validate_source_items(source_root, (".codex-plugin", "SKILL.md", "scripts", "mcp"), "plugin")
     print(f"Syncing local plugin package to {plugin_root}")
-    plugin_root.mkdir(parents=True, exist_ok=True)
-
-    for item in PLUGIN_ITEMS:
-        copy_fresh_item(source_root / item, plugin_root / item)
+    sync_items_transactional(source_root, plugin_root, PLUGIN_ITEMS)
     normalize_mcp_manifest(plugin_root / ".mcp.json")
 
     plugin_manifest = json.loads(installed_plugin_manifest_path.read_text(encoding="utf-8"))

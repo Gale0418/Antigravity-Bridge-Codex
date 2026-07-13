@@ -238,6 +238,42 @@ $pluginItems = @(
 $repoPluginManifestPath = Join-Path $sourceRoot '.codex-plugin/plugin.json'
 $installedPluginManifestPath = Join-Path $pluginRoot '.codex-plugin/plugin.json'
 
+$requiredSkillItems = @('SKILL.md', 'scripts', 'mcp')
+$optionalSkillItems = @('agents', 'assets', 'references', '.mcp.json')
+
+function Sync-ItemsTransactional {
+    param([Parameter(Mandatory = $true)][string]$SourceRoot, [Parameter(Mandatory = $true)][string]$DestinationRoot, [Parameter(Mandatory = $true)][string[]]$Items)
+    $parent = Split-Path -Parent $DestinationRoot
+    Ensure-ParentDirectory -Path (Join-Path $DestinationRoot 'placeholder')
+    $stage = Join-Path $parent ('.' + (Split-Path -Leaf $DestinationRoot) + '.stage-' + [guid]::NewGuid().ToString('N'))
+    $backup = Join-Path $parent ('.' + (Split-Path -Leaf $DestinationRoot) + '.backup-' + [guid]::NewGuid().ToString('N'))
+    New-Item -ItemType Directory -Path $stage -Force | Out-Null
+    try {
+        foreach ($item in $Items) {
+            $source = Join-Path $SourceRoot $item
+            if (Test-Path -LiteralPath $source) { Copy-FreshItem -SourcePath $source -DestinationPath (Join-Path $stage $item) }
+        }
+        if (Test-Path -LiteralPath $DestinationRoot) { Move-Item -LiteralPath $DestinationRoot -Destination $backup -Force }
+        Move-Item -LiteralPath $stage -Destination $DestinationRoot -Force
+        $stage = $null
+    } catch {
+        if (Test-Path -LiteralPath $backup) {
+            if (Test-Path -LiteralPath $DestinationRoot) { Remove-Item -LiteralPath $DestinationRoot -Recurse -Force }
+            Move-Item -LiteralPath $backup -Destination $DestinationRoot -Force
+        }
+        throw
+    } finally {
+        if ($stage -and (Test-Path -LiteralPath $stage)) { Remove-Item -LiteralPath $stage -Recurse -Force }
+        if (Test-Path -LiteralPath $backup) { Remove-Item -LiteralPath $backup -Recurse -Force }
+    }
+}
+
+function Assert-RequiredItems {
+    param([Parameter(Mandatory = $true)][string]$Root, [Parameter(Mandatory = $true)][string[]]$Items, [Parameter(Mandatory = $true)][string]$Label)
+    $missing = @($Items | Where-Object { -not (Test-Path -LiteralPath (Join-Path $Root $_)) })
+    if ($missing.Count -gt 0) { throw "Missing required $Label item(s): $($missing -join ', ')" }
+}
+
 $skillItems = @(
     'SKILL.md',
     'agents',
@@ -252,10 +288,9 @@ if (-not (Test-Path -LiteralPath $skillRoot)) {
     New-Item -ItemType Directory -Path $skillRoot -Force | Out-Null
 }
 
+Assert-RequiredItems -Root $sourceRoot -Items $requiredSkillItems -Label 'skill'
 Write-Host "Installing personal skill from $sourceRoot to $skillRoot"
-foreach ($item in $skillItems) {
-    Copy-FreshItem -SourcePath (Join-Path $sourceRoot $item) -DestinationPath (Join-Path $skillRoot $item)
-}
+Sync-ItemsTransactional -SourceRoot $sourceRoot -DestinationRoot $skillRoot -Items $skillItems
 Set-InstalledMcpInterpreter -ManifestPath (Join-Path $skillRoot '.mcp.json')
 
 if (-not (Test-Path -LiteralPath $repoPluginManifestPath)) {
@@ -264,12 +299,11 @@ if (-not (Test-Path -LiteralPath $repoPluginManifestPath)) {
     return
 }
 
+Assert-RequiredItems -Root $sourceRoot -Items @('.codex-plugin', 'SKILL.md', 'scripts', 'mcp') -Label 'plugin'
 Write-Host "Syncing local plugin package to $pluginRoot"
 New-Item -ItemType Directory -Path $pluginRoot -Force | Out-Null
 
-foreach ($item in $pluginItems) {
-    Copy-FreshItem -SourcePath (Join-Path $sourceRoot $item) -DestinationPath (Join-Path $pluginRoot $item)
-}
+Sync-ItemsTransactional -SourceRoot $sourceRoot -DestinationRoot $pluginRoot -Items $pluginItems
 Set-InstalledMcpInterpreter -ManifestPath (Join-Path $pluginRoot '.mcp.json')
 
 $pluginManifest = Get-Content -LiteralPath $installedPluginManifestPath -Raw | ConvertFrom-Json

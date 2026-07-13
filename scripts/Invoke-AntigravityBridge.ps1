@@ -1,6 +1,6 @@
 param(
     [Parameter(Position = 0, Mandatory = $true)]
-    [ValidateSet('discover', 'matrix', 'start', 'send', 'trajectory')]
+    [ValidateSet('discover', 'matrix', 'start', 'send', 'smoke', 'trajectory')]
     [string]$Action,
 
     [string]$WorkspacePath = (Get-Location).Path,
@@ -14,7 +14,7 @@ param(
     [ValidateSet('cute','professional')]
     [string]$IntroStyle = 'cute',
     [switch]$NoIntro,
-    [string]$WaitPattern = '(?s).+',
+    [string]$WaitPattern = '',
     [string]$Text,
     [switch]$AllowTimeout,
     [switch]$OmitRequestedModel,
@@ -37,6 +37,46 @@ function Get-ConversationIntro {
     return '我是 Codex，今天一起來幫主人做事的搭檔。我負責規劃、整理和驗收，你負責在 Antigravity 這邊幫忙執行或一起想辦法；我們像家人聊天一樣合作就好，資訊不夠就直接提醒我。'
 }
 
+function New-AntigravityCompletionMarker {
+    return "ANTIGRAVITY_BRIDGE_MARKER_$([guid]::NewGuid().ToString('N'))"
+}
+
+function Add-AntigravityCompletionMarkerInstruction {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Text,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Marker
+    )
+
+    return "$Text`n`nPlease finish your reply with this exact marker on its own line: $Marker"
+}
+
+function Resolve-AntigravityWaitPattern {
+    param(
+        [string]$WaitPattern,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Text
+    )
+
+    if (-not [string]::IsNullOrWhiteSpace($WaitPattern)) {
+        return [pscustomobject]@{
+            Pattern = $WaitPattern
+            Text = $Text
+            Marker = ''
+        }
+    }
+
+    $marker = New-AntigravityCompletionMarker
+    return [pscustomobject]@{
+        Pattern = $marker
+        Text = Add-AntigravityCompletionMarkerInstruction -Text $Text -Marker $marker
+        Marker = $marker
+    }
+}
+
 function Assert-AntigravityTimeoutOutcome {
     param(
         [Parameter(Mandatory = $true)]
@@ -46,11 +86,13 @@ function Assert-AntigravityTimeoutOutcome {
         [string]$Action
     )
 
-    if (-not $Outcome.TimedOut) {
-        return
+    if (-not [string]::IsNullOrWhiteSpace([string]$Outcome.Failure)) {
+        throw "Action '$Action' failed in cascade $($Outcome.CascadeId): $($Outcome.Failure)"
     }
 
-    throw "Action '$Action' timed out waiting for pattern $($Outcome.Pattern) in cascade $($Outcome.CascadeId). Re-run with -AllowTimeout to inspect partial output."
+    if ($Outcome.TimedOut) {
+        throw "Action '$Action' timed out waiting for pattern $($Outcome.Pattern) in cascade $($Outcome.CascadeId). Re-run with -AllowTimeout to inspect partial output."
+    }
 }
 
 switch ($Action) {
@@ -79,9 +121,11 @@ switch ($Action) {
             (Get-ConversationIntro -Style $IntroStyle) + "`n`n" + $OpeningPrompt
         }
 
-        Send-AntigravityMessage -CascadeId $cascade.CascadeId -Text $message -Model $Model -Session $session | Out-Null
-        $trajectoryOutcome = Wait-AntigravityTrajectoryOutcome -CascadeId $cascade.CascadeId -Pattern $WaitPattern -TimeoutSeconds 90 -Session $session
-        if (-not $AllowTimeout) {
+        $wait = Resolve-AntigravityWaitPattern -WaitPattern $WaitPattern -Text $message
+
+        Send-AntigravityMessage -CascadeId $cascade.CascadeId -Text $wait.Text -Model $Model -Session $session | Out-Null
+        $trajectoryOutcome = Wait-AntigravityTrajectoryMatchResult -CascadeId $cascade.CascadeId -Pattern $wait.Pattern -TimeoutSeconds 90 -Session $session
+        if (-not $AllowTimeout -or -not [string]::IsNullOrWhiteSpace([string]$trajectoryOutcome.Failure)) {
             Assert-AntigravityTimeoutOutcome -Outcome $trajectoryOutcome -Action 'start'
         }
         $response = $trajectoryOutcome.Response
@@ -96,6 +140,7 @@ switch ($Action) {
             timeout = $trajectoryOutcome.TimedOut
             response = $response
             failure = $failure
+            elapsedSeconds = $trajectoryOutcome.ElapsedSeconds
         } | ConvertTo-Json -Depth 6
     }
     'send' {
@@ -106,9 +151,10 @@ switch ($Action) {
             throw "Action 'send' requires -Text"
         }
         $session = Get-AntigravitySessionInfo
-        Send-AntigravityMessage -CascadeId $CascadeId -Text $Text -Model $Model -OmitRequestedModel:$OmitRequestedModel -Session $session | Out-Null
-        $trajectoryOutcome = Wait-AntigravityTrajectoryOutcome -CascadeId $CascadeId -Pattern $WaitPattern -TimeoutSeconds 90 -Session $session
-        if (-not $AllowTimeout) {
+        $wait = Resolve-AntigravityWaitPattern -WaitPattern $WaitPattern -Text $Text
+        Send-AntigravityMessage -CascadeId $CascadeId -Text $wait.Text -Model $Model -OmitRequestedModel:$OmitRequestedModel -Session $session | Out-Null
+        $trajectoryOutcome = Wait-AntigravityTrajectoryMatchResult -CascadeId $CascadeId -Pattern $wait.Pattern -TimeoutSeconds 90 -Session $session
+        if (-not $AllowTimeout -or -not [string]::IsNullOrWhiteSpace([string]$trajectoryOutcome.Failure)) {
             Assert-AntigravityTimeoutOutcome -Outcome $trajectoryOutcome -Action 'send'
         }
         $response = $trajectoryOutcome.Response
@@ -121,6 +167,39 @@ switch ($Action) {
             timeout = $trajectoryOutcome.TimedOut
             response = $response
             failure = $failure
+            elapsedSeconds = $trajectoryOutcome.ElapsedSeconds
+        } | ConvertTo-Json -Depth 6
+    }
+    'smoke' {
+        $resolvedWorkspacePath = (Resolve-Path -LiteralPath $WorkspacePath).Path
+        $session = Get-AntigravitySessionInfo
+        $cascade = New-AntigravityCascade -Model $Model -WorkspacePaths @($resolvedWorkspacePath) -Session $session
+        $marker = New-AntigravityCompletionMarker
+        $smokePrompt = if (-not [string]::IsNullOrWhiteSpace($Text)) { $Text } else { $OpeningPrompt }
+        $smokeText = if ([string]::IsNullOrWhiteSpace($smokePrompt)) {
+            "Please reply with this exact marker on its own line: $marker"
+        } else {
+            Add-AntigravityCompletionMarkerInstruction -Text $smokePrompt -Marker $marker
+        }
+
+        Send-AntigravityMessage -CascadeId $cascade.CascadeId -Text $smokeText -Model $Model -OmitRequestedModel:$OmitRequestedModel -Session $session | Out-Null
+        # Smoke is intentionally bounded and deterministic: one marker, one
+        # 30-second wait.  It is a health check, not an open-ended chat call.
+        $trajectoryOutcome = Wait-AntigravityTrajectoryMatchResult -CascadeId $cascade.CascadeId -Pattern $marker -TimeoutSeconds 30 -Session $session
+        if (-not $AllowTimeout -or -not [string]::IsNullOrWhiteSpace([string]$trajectoryOutcome.Failure)) {
+            Assert-AntigravityTimeoutOutcome -Outcome $trajectoryOutcome -Action 'smoke'
+        }
+
+        [pscustomobject]@{
+            action = 'smoke'
+            cascadeId = $cascade.CascadeId
+            workspacePath = $resolvedWorkspacePath
+            marker = $marker
+            matched = $trajectoryOutcome.Matched
+            timeout = $trajectoryOutcome.TimedOut
+            response = $trajectoryOutcome.Response
+            failure = $trajectoryOutcome.Failure
+            elapsedSeconds = $trajectoryOutcome.ElapsedSeconds
         } | ConvertTo-Json -Depth 6
     }
     'trajectory' {

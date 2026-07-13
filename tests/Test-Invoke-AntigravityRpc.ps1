@@ -104,6 +104,50 @@ function Get-AntigravityTrajectory {
     return [pscustomobject]@{ steps = @() }
 }
 
+$successTrajectory = [pscustomobject]@{
+    steps = @(
+        [pscustomobject]@{
+            type = 'CORTEX_STEP_TYPE_PLANNER_RESPONSE'
+            plannerResponse = [pscustomobject]@{ response = 'READY MARKER_OK' }
+        }
+    )
+}
+$failureTrajectory = [pscustomobject]@{
+    steps = @(
+        [pscustomobject]@{
+            type = 'CORTEX_STEP_TYPE_ERROR_MESSAGE'
+            errorMessage = [pscustomobject]@{
+                error = [pscustomobject]@{ shortError = 'fake trajectory failure' }
+            }
+        }
+    )
+}
+
+$originalGetTrajectory = ${function:Get-AntigravityTrajectory}
+try {
+    ${function:Get-AntigravityTrajectory} = { param($CascadeId, $Verbosity = 2, $Session) return $successTrajectory }
+    $matchResult = Wait-AntigravityTrajectoryMatchResult -CascadeId 'success-case' -Pattern 'MARKER_OK' -TimeoutSeconds 1 -PollIntervalSeconds 0 -Session ([pscustomobject]@{})
+    if (-not $matchResult.Matched -or $matchResult.TimedOut) {
+        throw 'Expected a successful fake MatchResult'
+    }
+    if ($matchResult.Response -notmatch 'MARKER_OK' -or $matchResult.ElapsedSeconds -lt 0) {
+        throw 'Expected response and elapsedSeconds on MatchResult'
+    }
+
+    $compatResult = Wait-AntigravityTrajectoryOutcome -CascadeId 'success-case' -Pattern 'MARKER_OK' -TimeoutSeconds 1 -PollIntervalSeconds 0 -Session ([pscustomobject]@{})
+    if (-not $compatResult.Matched -or $compatResult.ElapsedSeconds -lt 0) {
+        throw 'Expected Outcome compatibility wrapper to expose MatchResult fields'
+    }
+
+    ${function:Get-AntigravityTrajectory} = { param($CascadeId, $Verbosity = 2, $Session) return $failureTrajectory }
+    $failureResult = Wait-AntigravityTrajectoryMatchResult -CascadeId 'failure-case' -Pattern '(?s).+' -TimeoutSeconds 1 -PollIntervalSeconds 0 -Session ([pscustomobject]@{})
+    if ($failureResult.Matched -or $failureResult.TimedOut -or $failureResult.Failure -ne 'fake trajectory failure') {
+        throw 'Expected a fake trajectory failure to remain unsuccessful'
+    }
+} finally {
+    ${function:Get-AntigravityTrajectory} = $originalGetTrajectory
+}
+
 try {
     Wait-AntigravityTrajectoryMatch -CascadeId 'timeout-case' -Pattern 'READY' -TimeoutSeconds 0 -PollIntervalSeconds 0 -Session ([pscustomobject]@{}) | Out-Null
     throw 'Expected timeout exception from Wait-AntigravityTrajectoryMatch'

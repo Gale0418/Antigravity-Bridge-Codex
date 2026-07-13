@@ -40,6 +40,55 @@ def fresh_test_dir(name: str) -> Path:
 
 
 class AntigravityBridgePythonTests(unittest.TestCase):
+    def test_best_effort_native_cleanup_ignores_launch_oserror(self):
+        installer = load_installer_module()
+        with patch.object(installer.subprocess, "run", side_effect=OSError("missing executable")):
+            installer.run_native_best_effort(Path("codex"), "plugin", "remove", "legacy")
+
+    def test_installer_rejects_missing_required_items(self):
+        installer = load_installer_module()
+        source = fresh_test_dir("installer-missing-source")
+        (source / "SKILL.md").write_text("fixture", encoding="utf-8")
+
+        with self.assertRaisesRegex(RuntimeError, "scripts, mcp"):
+            installer.validate_source_items(
+                source,
+                ("SKILL.md", "scripts", "mcp"),
+                "skill",
+            )
+
+    def test_transactional_sync_restores_previous_install_on_copy_failure(self):
+        installer = load_installer_module()
+        root = fresh_test_dir("installer-rollback")
+        source = root / "source"
+        destination = root / "installed"
+        source.mkdir()
+        destination.mkdir()
+        (source / "first.txt").write_text("new", encoding="utf-8")
+        (source / "second.txt").write_text("new", encoding="utf-8")
+        (destination / "previous.txt").write_text("keep", encoding="utf-8")
+
+        original_copy = installer.copy_fresh_item
+        calls = 0
+
+        def fail_second_copy(source_path, destination_path):
+            nonlocal calls
+            calls += 1
+            if calls == 2:
+                raise OSError("simulated copy failure")
+            original_copy(source_path, destination_path)
+
+        with patch.object(installer, "copy_fresh_item", side_effect=fail_second_copy):
+            with self.assertRaisesRegex(OSError, "simulated copy failure"):
+                installer.sync_items_transactional(
+                    source,
+                    destination,
+                    ("first.txt", "second.txt"),
+                )
+
+        self.assertEqual((destination / "previous.txt").read_text(encoding="utf-8"), "keep")
+        self.assertFalse((destination / "first.txt").exists())
+
     def test_installer_copies_skill_and_plugin_payload_to_isolated_codex_home(self):
         installer = load_installer_module()
         codex_home = fresh_test_dir("installer-codex-home")

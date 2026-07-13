@@ -10,6 +10,21 @@ if ($bridgeScriptText -notmatch 'Action ''\$Action'' timed out waiting for patte
 if ($bridgeScriptText -notmatch 'Re-run with -AllowTimeout to inspect partial output\.') {
     throw 'Invoke-AntigravityBridge.ps1 should explain how to opt into timeout inspection mode'
 }
+if ($bridgeScriptText -match '\[string\]\$WaitPattern\s*=\s*''\(\?s\)\.\+''') {
+    throw 'Bridge start/send must not use a broad default wait pattern'
+}
+if ($bridgeScriptText -notmatch 'New-AntigravityCompletionMarker') {
+    throw 'Bridge should generate a unique completion marker when no pattern is supplied'
+}
+if ($bridgeScriptText -notmatch 'Wait-AntigravityTrajectoryMatchResult') {
+    throw 'Bridge should consume the explicit trajectory match result helper'
+}
+if ($bridgeScriptText -notmatch 'TimeoutSeconds 30') {
+    throw 'Bridge smoke action should use a fixed 30-second wait'
+}
+if ($bridgeScriptText -notmatch 'Action ''\$Action'' failed in cascade') {
+    throw 'Bridge should not turn trajectory failures into successful output'
+}
 
 function Assert-ThrowsLike {
     param(
