@@ -1,5 +1,5 @@
 param(
-    [string]$WorkspacePath = 'D:\MyGame',
+    [string]$WorkspacePath = (Join-Path -Path $PSScriptRoot -ChildPath '..\..'),
     [string]$Model = 'MODEL_PLACEHOLDER_M36',
     [switch]$DryRun
 )
@@ -72,11 +72,12 @@ $response = Get-LatestAntigravityPlannerResponseText -Trajectory $trajectory
 $failure = Get-LatestAntigravityErrorText -Trajectory $trajectory
 $results.Add((New-Result -Id 'roundtrip-response' -Status $(if ($response -match 'MATRIX_OK_001') { 'pass' } else { 'fail' }) -CascadeId $sharedCascade.CascadeId -Observed $response -Response $response -Failure $failure -ArtifactPath $null))
 
-Send-AntigravityMessage -CascadeId $sharedCascade.CascadeId -Text '請只回覆你目前可見的 workspace 根目錄 Windows 絕對路徑，例如 D:\MyGame。' -Model $Model -Session $session | Out-Null
-$trajectory = Wait-AntigravityTrajectoryMatch -CascadeId $sharedCascade.CascadeId -Pattern 'd:\\MyGame|file:///d:/MyGame' -TimeoutSeconds 45 -Session $session
+Send-AntigravityMessage -CascadeId $sharedCascade.CascadeId -Text "請只回覆你目前可見的 workspace 根目錄 Windows 絕對路徑，例如 $resolvedWorkspacePath。" -Model $Model -Session $session | Out-Null
+$workspacePathPattern = [Regex]::Escape($resolvedWorkspacePath)
+$trajectory = Wait-AntigravityTrajectoryMatch -CascadeId $sharedCascade.CascadeId -Pattern $workspacePathPattern -TimeoutSeconds 45 -Session $session
 $response = Get-LatestAntigravityPlannerResponseText -Trajectory $trajectory
 $failure = Get-LatestAntigravityErrorText -Trajectory $trajectory
-$workspacePass = ($response -match [Regex]::Escape($resolvedWorkspacePath)) -or ($response -match 'd:\\MyGame') -or ($response -match 'file:///d:/MyGame')
+$workspacePass = $response -match $workspacePathPattern
 $results.Add((New-Result -Id 'workspace-awareness' -Status $(if ($workspacePass) { 'pass' } else { 'fail' }) -CascadeId $sharedCascade.CascadeId -Observed $response -Response $response -Failure $failure -ArtifactPath $null))
 
 [System.IO.File]::WriteAllText($readProbePath, "$readProbeToken`nSECOND_LINE`n", [System.Text.UTF8Encoding]::new($false))
@@ -149,7 +150,6 @@ $results.Add((New-Result -Id 'missing-model-negative-check' -Status $(if ($negat
         httpPort = $session.HttpPort
         httpsPort = $session.HttpsPort
         processId = $session.ProcessId
-        csrfTokenHint = if ($session.CsrfToken -and $session.CsrfToken.Length -ge 6) { $session.CsrfToken.Substring($session.CsrfToken.Length - 6) } else { 'N/A' }
     }
     results = $results
 } | ConvertTo-Json -Depth 8
