@@ -1,3 +1,6 @@
 .gemini/
 MissionCenter/
 docs/
+
+# Capability-matrix probe artifacts
+antigravity_matrix_*
