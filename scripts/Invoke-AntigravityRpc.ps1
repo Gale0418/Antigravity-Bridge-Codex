@@ -1,4 +1,7 @@
 $ErrorActionPreference = 'Stop'
+$script:AntigravityUtf8Encoding = [Text.UTF8Encoding]::new($false)
+[Console]::OutputEncoding = $script:AntigravityUtf8Encoding
+[Console]::InputEncoding = $script:AntigravityUtf8Encoding
 
 . "$PSScriptRoot\Discover-AntigravitySession.ps1"
 
@@ -88,6 +91,16 @@ function New-AntigravityModelSelection {
         ModelId = $ModelId
         ModelEnum = $ModelEnum
     }
+}
+
+function Get-AntigravityKnownModelEnum {
+    param([string]$ModelId)
+
+    # Verified against the local planner protocol. Recent conversation data is
+    # still preferred for future models that are not listed here.
+    $verified = @{ 'gemini-3.6-flash-high' = 'MODEL_PLACEHOLDER_M71' }
+    if ($verified.ContainsKey($ModelId)) { return $verified[$ModelId] }
+    return ''
 }
 
 function Find-AntigravityRecentModelSelection {
@@ -193,6 +206,11 @@ function Resolve-AntigravityModelSelection {
             return $recentSelection
         }
 
+        $knownEnum = Get-AntigravityKnownModelEnum -ModelId $explicitModel
+        if (-not [string]::IsNullOrWhiteSpace($knownEnum)) {
+            return (New-AntigravityModelSelection -ModelId $explicitModel -ModelEnum $knownEnum)
+        }
+
         return (New-AntigravityModelSelection -ModelId $explicitModel)
     }
 
@@ -252,14 +270,19 @@ function Invoke-AntigravityRpc {
         [Parameter(Mandatory = $true)]
         [hashtable]$Body,
 
+        [ValidateRange(1, 300)]
+        [int]$RequestTimeoutSeconds = 15,
+
+        [datetime]$DeadlineUtc = [datetime]::MinValue,
         [psobject]$Session = (Get-AntigravitySessionInfo)
     )
 
+    if ($DeadlineUtc -ne [datetime]::MinValue) { $remaining = [math]::Floor(($DeadlineUtc.ToUniversalTime() - [datetime]::UtcNow).TotalSeconds); if ($remaining -le 0) { throw 'Antigravity RPC deadline elapsed before request dispatch.' }; $RequestTimeoutSeconds = [math]::Max(1, [math]::Min($RequestTimeoutSeconds, [int]$remaining)) }
     $uri = Get-AntigravityServiceUri -HttpPort $Session.HttpPort -Method $Method
     $headers = Get-AntigravityHeaders -Session $Session
     $jsonBody = $Body | ConvertTo-Json -Depth 20
 
-    return Invoke-RestMethod -Method Post -Uri $uri -Headers $headers -Body $jsonBody
+    return Invoke-RestMethod -Method Post -Uri $uri -Headers $headers -Body $jsonBody -TimeoutSec $RequestTimeoutSeconds
 }
 
 function New-AntigravityCascade {
@@ -267,6 +290,7 @@ function New-AntigravityCascade {
         [string]$Model = '',
         [string[]]$WorkspacePaths,
         [string]$CascadeId = ([guid]::NewGuid().Guid),
+        [datetime]$DeadlineUtc = [datetime]::MinValue,
         [psobject]$Session = (Get-AntigravitySessionInfo)
     )
 
@@ -281,7 +305,7 @@ function New-AntigravityCascade {
         $body.workspaceUris = @($WorkspacePaths | ForEach-Object { ConvertTo-AntigravityFileUri -Path $_ })
     }
 
-    $response = Invoke-AntigravityRpc -Method 'StartCascade' -Body $body -Session $Session
+    $response = Invoke-AntigravityRpc -Method 'StartCascade' -Body $body -DeadlineUtc $DeadlineUtc -Session $Session
 
     return [pscustomobject]@{
         CascadeId = $(if ($response.cascadeId) { $response.cascadeId } else { $CascadeId })
@@ -301,6 +325,7 @@ function Send-AntigravityMessage {
 
         [string]$Model = '',
         [switch]$OmitRequestedModel,
+        [datetime]$DeadlineUtc = [datetime]::MinValue,
         [psobject]$Session = (Get-AntigravitySessionInfo)
     )
 
@@ -332,7 +357,7 @@ function Send-AntigravityMessage {
         }
     }
 
-    return Invoke-AntigravityRpc -Method 'SendUserCascadeMessage' -Body $body -Session $Session
+    return Invoke-AntigravityRpc -Method 'SendUserCascadeMessage' -Body $body -DeadlineUtc $DeadlineUtc -Session $Session
 }
 
 function Get-AntigravityTrajectoryEnvelope {
@@ -341,13 +366,14 @@ function Get-AntigravityTrajectoryEnvelope {
         [string]$CascadeId,
 
         [int]$Verbosity = 2,
+        [datetime]$DeadlineUtc = [datetime]::MinValue,
         [psobject]$Session = (Get-AntigravitySessionInfo)
     )
 
     return Invoke-AntigravityRpc -Method 'GetCascadeTrajectory' -Body @{
         cascadeId = $CascadeId
         verbosity = $Verbosity
-    } -Session $Session
+    } -DeadlineUtc $DeadlineUtc -Session $Session
 }
 
 function Get-AntigravityTrajectory {
@@ -356,10 +382,11 @@ function Get-AntigravityTrajectory {
         [string]$CascadeId,
 
         [int]$Verbosity = 2,
+        [datetime]$DeadlineUtc = [datetime]::MinValue,
         [psobject]$Session = (Get-AntigravitySessionInfo)
     )
 
-    $envelope = Get-AntigravityTrajectoryEnvelope -CascadeId $CascadeId -Verbosity $Verbosity -Session $Session
+    $envelope = Get-AntigravityTrajectoryEnvelope -CascadeId $CascadeId -Verbosity $Verbosity -DeadlineUtc $DeadlineUtc -Session $Session
     return $envelope.trajectory
 }
 
@@ -419,18 +446,21 @@ function Wait-AntigravityTrajectoryMatchResult {
 
         [int]$TimeoutSeconds = 90,
         [int]$PollIntervalSeconds = 3,
+        [datetime]$DeadlineUtc = [datetime]::MinValue,
         [psobject]$Session = (Get-AntigravitySessionInfo)
     )
 
     $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
-    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    $deadline = if ($DeadlineUtc -eq [datetime]::MinValue) { [datetime]::UtcNow.AddSeconds($TimeoutSeconds) } else { $DeadlineUtc.ToUniversalTime() }
     $lastTrajectory = $null
     $lastResponse = ''
     $lastError = ''
     $lastCombined = ''
 
     do {
-        $lastTrajectory = Get-AntigravityTrajectory -CascadeId $CascadeId -Session $Session
+        $remainingBeforePoll = ($deadline - [datetime]::UtcNow).TotalSeconds
+        if ($remainingBeforePoll -lt 1) { break }
+        $lastTrajectory = Get-AntigravityTrajectory -CascadeId $CascadeId -DeadlineUtc $deadline -Session $Session
         $lastResponse = Get-LatestAntigravityPlannerResponseText -Trajectory $lastTrajectory
         $lastError = Get-LatestAntigravityErrorText -Trajectory $lastTrajectory
         $lastCombined = @($lastResponse, $lastError) -join "`n"
@@ -467,11 +497,13 @@ function Wait-AntigravityTrajectoryMatchResult {
             }
         }
 
-        if ((Get-Date) -ge $deadline) {
+        if ([datetime]::UtcNow -ge $deadline) {
             break
         }
 
-        Start-Sleep -Seconds $PollIntervalSeconds
+        $remainingSeconds = ($deadline - [datetime]::UtcNow).TotalSeconds
+        if ($remainingSeconds -le 0) { break }
+        Start-Sleep -Seconds ([math]::Min([double]$PollIntervalSeconds, $remainingSeconds))
     } while ($true)
 
     $stopwatch.Stop()

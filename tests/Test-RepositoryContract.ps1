@@ -20,7 +20,7 @@ if ($skillText -match $legacyName) {
     throw "SKILL.md should not use the legacy $legacyName name"
 }
 
-if (-not (Test-Path (Join-Path $repoRoot '.github\workflows\pester.yml'))) {
+if (-not (Test-Path (Join-Path $repoRoot '.github/workflows/pester.yml'))) {
     throw 'Missing GitHub Actions workflow for bridge regression tests'
 }
 

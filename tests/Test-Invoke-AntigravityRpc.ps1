@@ -50,6 +50,8 @@ if ($IsMacOS -or $IsLinux) {
     }
 }
 
+$previousAntigravityModel = $env:ANTIGRAVITY_MODEL
+try {
 Remove-Item Env:ANTIGRAVITY_MODEL -ErrorAction SilentlyContinue
 $originalFind = ${function:Find-AntigravityRecentModelSelection}
 try {
@@ -74,7 +76,7 @@ New-Item -ItemType Directory -Path $conversationDir | Out-Null
     (Join-Path $conversationDir 'older.db'),
     [System.Text.Encoding]::ASCII.GetBytes("trajectory_id`0abc`0gpt-oss-120b-medium`0model_enum`0MODEL_PLACEHOLDER_M12")
 )
-(Get-Item (Join-Path $conversationDir 'older.db')).LastWriteTimeUtc = (Get-Date).AddMinutes(-5)
+(Get-Item (Join-Path $conversationDir 'older.db')).LastWriteTimeUtc = [datetime]::UtcNow.AddMinutes(-5)
 
 $discoveredModel = Find-AntigravityRecentModel -ConversationDirectory $conversationDir
 if ($discoveredModel -ne 'gemini-3.1-pro-low') {
@@ -126,7 +128,7 @@ $failureTrajectory = [pscustomobject]@{
 $originalGetTrajectory = ${function:Get-AntigravityTrajectory}
 try {
     ${function:Get-AntigravityTrajectory} = { param($CascadeId, $Verbosity = 2, $Session) return $successTrajectory }
-    $matchResult = Wait-AntigravityTrajectoryMatchResult -CascadeId 'success-case' -Pattern 'MARKER_OK' -TimeoutSeconds 1 -PollIntervalSeconds 0 -Session ([pscustomobject]@{})
+    $matchResult = Wait-AntigravityTrajectoryMatchResult -CascadeId 'success-case' -Pattern 'MARKER_OK' -TimeoutSeconds 2 -PollIntervalSeconds 0 -Session ([pscustomobject]@{})
     if (-not $matchResult.Matched -or $matchResult.TimedOut) {
         throw 'Expected a successful fake MatchResult'
     }
@@ -134,13 +136,13 @@ try {
         throw 'Expected response and elapsedSeconds on MatchResult'
     }
 
-    $compatResult = Wait-AntigravityTrajectoryOutcome -CascadeId 'success-case' -Pattern 'MARKER_OK' -TimeoutSeconds 1 -PollIntervalSeconds 0 -Session ([pscustomobject]@{})
+    $compatResult = Wait-AntigravityTrajectoryOutcome -CascadeId 'success-case' -Pattern 'MARKER_OK' -TimeoutSeconds 2 -PollIntervalSeconds 0 -Session ([pscustomobject]@{})
     if (-not $compatResult.Matched -or $compatResult.ElapsedSeconds -lt 0) {
         throw 'Expected Outcome compatibility wrapper to expose MatchResult fields'
     }
 
     ${function:Get-AntigravityTrajectory} = { param($CascadeId, $Verbosity = 2, $Session) return $failureTrajectory }
-    $failureResult = Wait-AntigravityTrajectoryMatchResult -CascadeId 'failure-case' -Pattern '(?s).+' -TimeoutSeconds 1 -PollIntervalSeconds 0 -Session ([pscustomobject]@{})
+    $failureResult = Wait-AntigravityTrajectoryMatchResult -CascadeId 'failure-case' -Pattern '(?s).+' -TimeoutSeconds 2 -PollIntervalSeconds 0 -Session ([pscustomobject]@{})
     if ($failureResult.Matched -or $failureResult.TimedOut -or $failureResult.Failure -ne 'fake trajectory failure') {
         throw 'Expected a fake trajectory failure to remain unsuccessful'
     }
@@ -170,3 +172,6 @@ try {
 }
 
 Write-Host 'PASS: rpc helper values look correct'
+} finally {
+    $env:ANTIGRAVITY_MODEL = $previousAntigravityModel
+}

@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import uuid
 from datetime import datetime
 from pathlib import Path
 
@@ -36,10 +37,30 @@ def validate_source_items(source_root: Path, items: tuple[str, ...], label: str)
         raise RuntimeError(f"Missing required {label} item(s): {', '.join(missing)}")
 
 
+def create_stage_directory(parent: Path, prefix: str) -> Path:
+    """Create a unique workspace directory without tempfile's restrictive Windows ACL."""
+    for _ in range(10):
+        path = parent / f"{prefix}{uuid.uuid4().hex}"
+        try:
+            path.mkdir()
+            return path
+        except FileExistsError:
+            continue
+    raise RuntimeError(f"Unable to create a unique staging directory in {parent}")
+
+
+def unique_backup_path(parent: Path, prefix: str) -> Path:
+    for _ in range(10):
+        path = parent / f"{prefix}{uuid.uuid4().hex}"
+        if not path.exists():
+            return path
+    raise RuntimeError(f"Unable to reserve a unique backup path in {parent}")
+
+
 def sync_items_transactional(source_root: Path, destination_root: Path, items: tuple[str, ...]) -> None:
     """Stage a complete copy, restoring an existing install if copying fails."""
     destination_root.parent.mkdir(parents=True, exist_ok=True)
-    stage = Path(tempfile.mkdtemp(prefix=f"stage-{destination_root.name}-", dir=destination_root.parent))
+    stage = create_stage_directory(destination_root.parent, f"stage-{destination_root.name}-")
     backup = None
     try:
         for item in items:
@@ -47,8 +68,7 @@ def sync_items_transactional(source_root: Path, destination_root: Path, items: t
             if source.exists():
                 copy_fresh_item(source, stage / item)
         if destination_root.exists():
-            backup = Path(tempfile.mkdtemp(prefix=f"backup-{destination_root.name}-", dir=destination_root.parent))
-            shutil.rmtree(backup)
+            backup = unique_backup_path(destination_root.parent, f"backup-{destination_root.name}-")
             destination_root.replace(backup)
         stage.replace(destination_root)
     except Exception:
@@ -60,8 +80,6 @@ def sync_items_transactional(source_root: Path, destination_root: Path, items: t
         remove_path_best_effort(stage)
         if backup is not None:
             remove_path_best_effort(backup)
-
-
 def legacy_plugin_name() -> str:
     return "antigravity-" + "gemini" + "-bridge"
 
@@ -89,6 +107,7 @@ def normalize_mcp_manifest(manifest_path: Path) -> None:
     if not manifest_path.exists():
         return
 
+    manifest_root = manifest_path.parent.resolve()
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     server = manifest.get("mcpServers", {}).get("antigravity-bridge-codex")
     if not isinstance(server, dict):
@@ -97,6 +116,18 @@ def normalize_mcp_manifest(manifest_path: Path) -> None:
     server.setdefault("type", "stdio")
     if server.get("command") in {"python3", "python"}:
         server["command"] = resolve_mcp_python_command()
+
+    args = server.get("args")
+    if isinstance(args, list) and args and isinstance(args[0], str):
+        if not Path(args[0]).is_absolute():
+            args[0] = str((manifest_root / args[0]).resolve())
+
+    cwd_value = server.get("cwd")
+    if isinstance(cwd_value, str) and cwd_value:
+        if not Path(cwd_value).is_absolute():
+            server["cwd"] = str((manifest_root / cwd_value).resolve())
+    else:
+        server["cwd"] = str(manifest_root)
 
     file_descriptor, temporary_name = tempfile.mkstemp(
         prefix=f"{manifest_path.name}.",
@@ -111,7 +142,6 @@ def normalize_mcp_manifest(manifest_path: Path) -> None:
         os.replace(temporary_path, manifest_path)
     finally:
         temporary_path.unlink(missing_ok=True)
-
 
 def copy_fresh_item(source: Path, destination: Path) -> None:
     if not source.exists():

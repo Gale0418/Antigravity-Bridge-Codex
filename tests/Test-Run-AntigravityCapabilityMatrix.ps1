@@ -40,4 +40,14 @@ foreach ($id in $requiredIds) {
     }
 }
 
+$actualIds = @($plan.testIds)
+if ($actualIds.Count -ne 8) {
+    throw "Expected exactly 8 planned test IDs, got $($actualIds.Count)"
+}
+if ((@($actualIds | Sort-Object -Unique)).Count -ne $actualIds.Count) {
+    throw 'Planned test IDs must be unique'
+}
+if ((Compare-Object -ReferenceObject ($requiredIds | Sort-Object) -DifferenceObject ($actualIds | Sort-Object))) {
+    throw 'Planned test IDs do not exactly match the required capability matrix'
+}
 Write-Host 'PASS: capability matrix dry-run looks correct'

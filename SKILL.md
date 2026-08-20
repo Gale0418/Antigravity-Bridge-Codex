@@ -9,6 +9,11 @@ description: Use when Codex needs to reconnect a locally logged-in Antigravity s
 
 Use this skill to let Codex collaborate with a locally logged-in Antigravity Gemini session as a second agent. Gemini is usually the primary writer or executor for the delegated task, while Codex remains responsible for scope control, supervision, review, and final acceptance.
 
+## Primary Transport
+
+Use auto as the normal visible-first transport: it tries Hub-native private loopback RPC first and uses agy only after a confirmed pre-dispatch RPC failure. Once send preparation begins, hard or ambiguous timeouts must reconcile the same request ID and must never fall back or resend. Gemini 3.6 Flash High maps to verified planner enum MODEL_PLACEHOLDER_M71; explicit MODEL_PLACEHOLDER_M values remain supported. RPC receipts report transport, visibility, and IDs. In Antigravity 2.4.3, agy fallback can be completely invisible because it writes .db while the Hub loader expects .pb; never inject or convert protobuf files.
+
+Hub-native private loopback RPC is the default visible-first transport, not merely a diagnostic path. It remains local/private; desktop rendering can be version-dependent, so use the receipt visibility field.
 ## Mandatory Operational Directives & Pre-Authorization
 
 Codex MUST follow these core rules without exception when this skill is invoked:
@@ -63,9 +68,9 @@ Do not use this skill when:
 
 Follow this order:
 
-1. Confirm Antigravity standalone app is open and the user is logged in.
-2. Reconnect the current session with `scripts/Discover-AntigravitySession.ps1`.
-3. Use `scripts/Invoke-AntigravityRpc.ps1` to create a cascade and send messages.
+1. Confirm Antigravity is running and locally logged in; also keep `agy` authenticated for automatic fallback.
+2. For normal prompts, invoke `scripts/antigravity_bridge.py prompt` or the packaged `antigravity_prompt` MCP tool with the default `auto` transport.
+3. Use the low-level `scripts/Invoke-AntigravityRpc.ps1` directly only for cascade/trajectory diagnostics; normal prompting should use the unified wrapper.
 4. Choose one operating mode:
    - quick smoke check
    - capability matrix
@@ -218,14 +223,14 @@ Read `references/known-gotchas.md` before changing the flow. The most important 
 - `GetCascadeTrajectory` must be read from `trajectory.steps[]`, not the old top-level fields
 - planner model wiring is strict: the bridge may need both the public model id and the paired internal `MODEL_PLACEHOLDER_M*` enum, so prefer the helper scripts instead of hand-rolling the payload
 - recent successful local conversation storage can be used as the last model fallback when no explicit model is passed, including the paired internal planner enum when available
-- UI chat visibility is optional; successful background RPC does not guarantee a visible chat window
+- successful `auto` RPC receipts should be Hub-visible (at least `Outside of Project` on the verified Antigravity version); do not claim Project classification unless the UI confirms it
 - a long wait can mean Antigravity is waiting for a local permission prompt, so check the UI before treating it as a bridge failure
 
 ## Resources
 
 - `scripts/Invoke-AntigravityBridge.ps1`: unified thin wrapper/CLI for discover, matrix, start, send, and trajectory commands (underlying capabilities are still provided by the existing scripts)
-- `scripts/antigravity_bridge.py`: standard-library Python fallback for discover, start, send, trajectory, and smoke commands when `pwsh` or skill tools are unavailable
-- `mcp/antigravity_bridge_server.py`: minimal stdio MCP server advertised by `.mcp.json` for tool-style recovery in plugin-capable Codex sessions
+- `scripts/antigravity_bridge.py`: standard-library CLI wrapper; `prompt` defaults to visible-first `auto` with explicit `rpc` and `agy` modes
+- `mcp/antigravity_bridge_server.py`: stdio MCP server; `antigravity_prompt` uses the same visible-first `auto` transport, with low-level diagnostic tools retained separately
 - `scripts/Discover-AntigravitySession.ps1`: reconnect from current logs
 - `scripts/Invoke-AntigravityRpc.ps1`: create cascades, send messages, parse replies and errors
 - `scripts/Run-AntigravityCapabilityMatrix.ps1`: repeatable end-to-end verification
@@ -233,3 +238,17 @@ Read `references/known-gotchas.md` before changing the flow. The most important 
 - `references/collaboration-playbook.md`: intro tone, multi-turn collaboration pattern, improvisation rules
 - `references/streaming-event-protocol.md`: low-latency trajectory polling, token streaming, and RPC event gateway guidance
 - `references/known-gotchas.md`: failure modes and compatibility notes
+## Delivery Identity and Retry Safety
+
+For every bridge prompt, generate a UUID request_id before the first request, retain the receipt, and reuse the same key for every retry. An omitted ID is generated only for that invocation, so separate calls cannot deduplicate.
+
+- CONFLICT means the key was reused with different content; stop rather than treating it as a retry.
+- After send preparation/delivery begins, IN_PROGRESS, DELIVERY_UNKNOWN, pending, and other non-terminal receipts must reconcile the same request_id, cascade, and marker. Do not resend and do not fall back to agy.
+- One global deadline spans RPC, reconciliation, and eligible fallback; timeout/cancellation is not proof delivery never occurred.
+- Save the receipt: it contains the IDs required for safe reconciliation.
+
+The Python transport persists fingerprints, state, cascade/marker IDs, and receipts in %LOCALAPPDATA%\AntigravityBridge\requests.sqlite3; it does not store prompt text or CSRF tokens. PowerShell is a compatibility/diagnostic layer with no independent persistent journal.
+
+mission_id and lane_id are only for deliberate parallelism: same request plus same lane is a retry; a distinct lane is an intentional distinct expert/worker. Full antigravity_squad coordination is not implemented; do not claim it is.
+
+Follow [AWS idempotent API client-token guidance](https://docs.aws.amazon.com/ec2/latest/devguide/ec2-api-idempotency.html), and preserve identity when using MCP [progress](https://modelcontextprotocol.io/specification/latest/basic/patterns/progress)/[cancellation](https://modelcontextprotocol.io/specification/latest/basic/patterns/cancellation) where exposed.

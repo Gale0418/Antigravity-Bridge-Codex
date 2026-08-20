@@ -198,6 +198,8 @@ function Set-InstalledMcpInterpreter {
         return
     }
 
+    $manifestFile = Get-Item -LiteralPath $ManifestPath
+    $manifestRoot = $manifestFile.Directory.FullName
     $manifest = Get-Content -LiteralPath $ManifestPath -Raw | ConvertFrom-Json
     $server = $manifest.mcpServers.'antigravity-bridge-codex'
     if (-not $server) {
@@ -205,11 +207,27 @@ function Set-InstalledMcpInterpreter {
     }
 
     if (-not $server.type) {
-        $server | Add-Member -NotePropertyName type -NotePropertyValue 'stdio'
+        $server | Add-Member -NotePropertyName type -NotePropertyValue 'stdio' -Force
     }
 
     if ($server.command -in @('python3', 'python')) {
         $server.command = Resolve-McpPythonCommand
+    }
+
+    if ($server.args -and $server.args.Count -gt 0 -and $server.args[0]) {
+        $arg0 = [string]$server.args[0]
+        if (-not [System.IO.Path]::IsPathRooted($arg0)) {
+            $server.args[0] = [System.IO.Path]::GetFullPath((Join-Path $manifestRoot $arg0))
+        }
+    }
+
+    $cwdValue = if ($server.cwd) { [string]$server.cwd } else { '' }
+    if (-not [string]::IsNullOrWhiteSpace($cwdValue)) {
+        if (-not [System.IO.Path]::IsPathRooted($cwdValue)) {
+            $server.cwd = [System.IO.Path]::GetFullPath((Join-Path $manifestRoot $cwdValue))
+        }
+    } else {
+        $server | Add-Member -NotePropertyName cwd -NotePropertyValue $manifestRoot -Force
     }
 
     $manifest | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $ManifestPath -Encoding utf8

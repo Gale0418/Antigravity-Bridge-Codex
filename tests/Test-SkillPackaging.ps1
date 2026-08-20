@@ -1,13 +1,13 @@
 $ErrorActionPreference = 'Stop'
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
-$pluginManifestPath = Join-Path $repoRoot '.codex-plugin\plugin.json'
-$pythonInstallerPath = Join-Path $repoRoot 'scripts\install.py'
-$powershellInstallerPath = Join-Path $repoRoot 'scripts\install.ps1'
-$packagingDocPath = Join-Path $repoRoot 'references\skill-packaging.md'
+$pluginManifestPath = Join-Path $repoRoot '.codex-plugin/plugin.json'
+$pythonInstallerPath = Join-Path $repoRoot 'scripts/install.py'
+$powershellInstallerPath = Join-Path $repoRoot 'scripts/install.ps1'
+$packagingDocPath = Join-Path $repoRoot 'references/skill-packaging.md'
 $mcpManifestPath = Join-Path $repoRoot '.mcp.json'
-$mcpServerPath = Join-Path $repoRoot 'mcp\antigravity_bridge_server.py'
-$pythonBridgePath = Join-Path $repoRoot 'scripts\antigravity_bridge.py'
+$mcpServerPath = Join-Path $repoRoot 'mcp/antigravity_bridge_server.py'
+$pythonBridgePath = Join-Path $repoRoot 'scripts/antigravity_bridge.py'
 $legacyName = ('antigravity-', 'gemini', '-bridge') -join ''
 
 if (-not (Test-Path -LiteralPath $pluginManifestPath)) {
@@ -49,7 +49,7 @@ if ($manifest.bundledContentVariant -ne 'legacy-mcp') {
 }
 
 $pluginSkillsRoot = Join-Path $repoRoot ($manifest.skills -replace '^\./', '')
-$pluginSkillManifestPath = Join-Path $pluginSkillsRoot 'antigravity-bridge-codex\SKILL.md'
+$pluginSkillManifestPath = Join-Path $pluginSkillsRoot 'antigravity-bridge-codex/SKILL.md'
 if (-not (Test-Path -LiteralPath $pluginSkillManifestPath)) {
     throw "Plugin skills path must contain antigravity-bridge-codex/SKILL.md: $pluginSkillManifestPath"
 }
@@ -125,6 +125,12 @@ if ($pythonInstallerText -notmatch 'STABLE_MCP_SERVER_NAME = "antigravity_bridge
 if ($pythonInstallerText -notmatch '"mcp",\s*"add"') {
     throw 'Python installer should add a stable user MCP server'
 }
+if ($pythonInstallerText -notmatch 'args.*resolve') {
+    throw 'Python installer should normalize MCP args[0] to absolute path'
+}
+if ($pythonInstallerText -notmatch 'cwd.*resolve') {
+    throw 'Python installer should normalize MCP cwd to absolute path'
+}
 
 $powershellInstallerText = Get-Content -LiteralPath $powershellInstallerPath -Raw
 if ($powershellInstallerText -notmatch "'mcp'") {
@@ -150,6 +156,12 @@ if ($powershellInstallerText -notmatch "stableMcpServerName = 'antigravity_bridg
 }
 if ($powershellInstallerText -notmatch "'mcp', 'add'") {
     throw 'PowerShell installer should add a stable user MCP server'
+}
+if ($powershellInstallerText -notmatch 'IsPathRooted') {
+    throw 'PowerShell installer should check IsPathRooted for MCP server relative paths'
+}
+if ($powershellInstallerText -notmatch 'GetFullPath') {
+    throw 'PowerShell installer should resolve MCP server paths using GetFullPath'
 }
 
 Write-Host 'PASS: plugin packaging metadata looks correct'

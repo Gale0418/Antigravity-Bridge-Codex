@@ -24,27 +24,16 @@ import antigravity_bridge as bridge  # noqa: E402
 PROTOCOL_VERSION = "2024-11-05"
 
 
-def read_message() -> dict[str, Any] | None:
-    headers: dict[str, str] = {}
-    while True:
-        line = sys.stdin.buffer.readline()
-        if not line:
-            return None
-        if line in (b"\r\n", b"\n"):
-            break
-        key, _, value = line.decode("ascii", errors="replace").partition(":")
-        headers[key.lower()] = value.strip()
-
-    length = int(headers.get("content-length", "0"))
-    if length <= 0:
+def read_message() -> Any | None:
+    line = sys.stdin.buffer.readline()
+    if not line:
         return None
-    return json.loads(sys.stdin.buffer.read(length).decode("utf-8"))
+    return json.loads(line.decode("utf-8"))
 
 
 def write_message(message: dict[str, Any]) -> None:
     payload = json.dumps(message, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
-    sys.stdout.buffer.write(f"Content-Length: {len(payload)}\r\n\r\n".encode("ascii"))
-    sys.stdout.buffer.write(payload)
+    sys.stdout.buffer.write(payload + b"\n")
     sys.stdout.buffer.flush()
 
 
@@ -63,8 +52,30 @@ def text_result(value: Any, is_error: bool = False) -> dict[str, Any]:
 def tools() -> list[dict[str, Any]]:
     return [
         {
+            "name": "antigravity_prompt",
+            "description": "Run an idempotent Hub-native visible RPC prompt first; retain request_id and reuse it for retries. Auto falls back to agy only before delivery begins.",
+            "inputSchema": {
+                "type": "object",
+                "required": ["prompt"],
+                "properties": {
+                    "prompt": {"type": "string"},
+                    "conversation_id": {"type": "string", "default": ""},
+                    "workspace_path": {"type": "string", "default": ""},
+                    "model": {"type": "string", "default": bridge.DEFAULT_AGY_MODEL},
+                    "transport": {"type": "string", "enum": ["auto", "rpc", "agy"], "default": "auto"},
+                    "timeout_seconds": {"type": "integer", "default": 90},
+                    "agy_executable": {"type": "string", "default": "agy"},
+                    "no_transcript": {"type": "boolean", "default": False},
+                    "project_id": {"type": "string", "default": ""},
+                    "request_id": {"type": "string", "default": ""},
+                    "mission_id": {"type": "string", "default": ""},
+                    "lane_id": {"type": "string", "default": ""},
+                },
+            },
+        },
+        {
             "name": "antigravity_discover",
-            "description": "Discover the current local Antigravity session from logs.",
+            "description": "Legacy diagnostic tool: discover the current local Antigravity session from logs.",
             "inputSchema": {
                 "type": "object",
                 "properties": {"show_secret": {"type": "boolean", "default": False}},
@@ -72,7 +83,7 @@ def tools() -> list[dict[str, Any]]:
         },
         {
             "name": "antigravity_smoke",
-            "description": "Start a local Antigravity cascade and wait for a marker.",
+            "description": "Legacy diagnostic tool: start a local Antigravity cascade and wait for a marker.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
@@ -88,7 +99,7 @@ def tools() -> list[dict[str, Any]]:
         },
         {
             "name": "antigravity_start",
-            "description": "Start a local Antigravity cascade, send an opening prompt, and wait for a pattern.",
+            "description": "Legacy diagnostic tool: start a local Antigravity cascade, send an opening prompt, and wait for a pattern.",
             "inputSchema": {
                 "type": "object",
                 "required": ["opening_prompt"],
@@ -105,7 +116,7 @@ def tools() -> list[dict[str, Any]]:
         },
         {
             "name": "antigravity_send",
-            "description": "Send a message to an existing local Antigravity cascade and wait for a pattern.",
+            "description": "Legacy diagnostic tool: send a message to an existing local Antigravity cascade and wait for a pattern.",
             "inputSchema": {
                 "type": "object",
                 "required": ["cascade_id", "text"],
@@ -123,7 +134,7 @@ def tools() -> list[dict[str, Any]]:
         },
         {
             "name": "antigravity_trajectory",
-            "description": "Read the raw trajectory for an existing local Antigravity cascade.",
+            "description": "Legacy diagnostic tool: read the raw trajectory for an existing local Antigravity cascade.",
             "inputSchema": {
                 "type": "object",
                 "required": ["cascade_id"],
@@ -144,6 +155,25 @@ def require_string(arguments: dict[str, Any], name: str) -> str:
 
 
 def call_tool(name: str, arguments: dict[str, Any]) -> Any:
+    if name == "antigravity_prompt":
+        prompt = require_string(arguments, "prompt")
+        receipt = bridge.run_prompt(
+            prompt,
+            conversation_id=str(arguments.get("conversation_id") or ""),
+            model=str(arguments.get("model") or bridge.DEFAULT_AGY_MODEL),
+            transport=str(arguments.get("transport") or "auto"),
+            timeout_seconds=int(arguments.get("timeout_seconds", 90)),
+            executable=str(arguments.get("agy_executable") or ""),
+            workspace_path=str(arguments.get("workspace_path") or ""),
+            no_transcript=bool(arguments.get("no_transcript", False)),
+            project_id=str(arguments.get("project_id") or ""),
+            request_id=str(arguments.get("request_id") or ""),
+            mission_id=str(arguments.get("mission_id") or ""),
+            lane_id=str(arguments.get("lane_id") or ""),
+        )
+        if not isinstance(receipt, dict):
+            raise RuntimeError("Antigravity prompt returned an invalid receipt")
+        return receipt
     if name == "antigravity_discover":
         session = bridge.get_session_info()
         return session.public_dict(bool(arguments.get("show_secret", False)))
@@ -239,7 +269,15 @@ def handle_request(request: dict[str, Any]) -> dict[str, Any] | None:
             result = {"tools": tools()}
         elif method == "tools/call":
             params = request.get("params") or {}
-            result = text_result(call_tool(params.get("name", ""), params.get("arguments") or {}))
+            tool_name = params.get("name", "")
+            tool_result = call_tool(tool_name, params.get("arguments") or {})
+            is_error = (
+                tool_name == "antigravity_prompt"
+                and isinstance(tool_result, dict)
+                and str(tool_result.get("status") or "").upper() in {"ERROR", "TIMEOUT", "CONFLICT"}
+                and str(tool_result.get("delivery_state") or "") not in {"IN_PROGRESS", "DELIVERING", "DELIVERY_UNKNOWN", "ACCEPTED_PENDING", "INPUT_REQUIRED"}
+            )
+            result = text_result(tool_result, is_error)
         elif method == "ping":
             result = {}
         else:
@@ -253,9 +291,28 @@ def handle_request(request: dict[str, Any]) -> dict[str, Any] | None:
 
 def main() -> int:
     while True:
-        request = read_message()
+        try:
+            request = read_message()
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            write_message(
+                {
+                    "jsonrpc": "2.0",
+                    "id": None,
+                    "error": {"code": -32700, "message": "Parse error"},
+                }
+            )
+            continue
         if request is None:
             return 0
+        if not isinstance(request, dict):
+            write_message(
+                {
+                    "jsonrpc": "2.0",
+                    "id": None,
+                    "error": {"code": -32600, "message": "Invalid Request"},
+                }
+            )
+            continue
         response = handle_request(request)
         if response is not None:
             write_message(response)

@@ -1,5 +1,10 @@
 # Known Gotchas
 
+## Official CLI Prompt Channel
+
+Default auto is visible-first: it starts with Hub-native private loopback RPC, then falls back to agy only after failure or hard timeout. Gemini 3.6 Flash High maps to verified MODEL_PLACEHOLDER_M71; explicit MODEL_PLACEHOLDER_M values remain supported. RPC receipts state transport, visibility, and IDs, with at least Hub/Outside visibility expected. Explicit rpc and agy modes remain available. In Antigravity 2.4.3, agy fallback can be completely invisible because it writes .db while the Hub loader expects .pb. Never inject or convert protobuf files; use the Markdown transcript for audit.
+
+Private IDE loopback RPC and cascades are the normal visible-first path under auto, while remaining restricted to local loopback. A stuck Blender MCP connection can block the agy fallback; remove or disable that failing integration before retrying.
 ## Dynamic Session Data
 
 Antigravity standalone app can restart and rotate all of these:
@@ -74,7 +79,7 @@ For strong evidence, confirm the trajectory includes:
 
 ## UI Visibility
 
-Background RPC success does not imply the Antigravity chat window will visibly open. The local language server can process a cascade entirely in the background.
+Visible-first RPC cascades are locally indexed and expected to be visible at least through Hub/Outside surfaces. Desktop rendering remains version-dependent; consume the receipt visibility field rather than assume a specific chat window.
 
 ## Workspace Binding
 
@@ -135,3 +140,12 @@ Recovery order:
 - use `scripts/Invoke-AntigravityBridge.ps1` when `pwsh` is available
 - use `scripts/antigravity_bridge.py` when only Python/shell fallback is available
 - use the plugin MCP tools from `.mcp.json` when the Codex session exposes them
+## Delivery identity, journal, and fallback boundary
+
+The Python visible-RPC delivery path is idempotent only when the caller creates request_id before the first send, keeps the receipt, and reuses the key for retries. An omitted ID is generated only for that invocation, not for cross-call deduplication. Its journal defaults to %LOCALAPPDATA%\AntigravityBridge\requests.sqlite3 on Windows and $XDG_STATE_HOME/AntigravityBridge/requests.sqlite3 (or ~/.local/state/AntigravityBridge/requests.sqlite3) on macOS and Linux, and stores fingerprints, state, cascade/marker IDs, and receipts—not prompt bodies or CSRF secrets.
+
+Same key plus different fingerprint is CONFLICT. After a send begins, IN_PROGRESS, DELIVERY_UNKNOWN, or any other pending/non-terminal result must reconcile the same key/cascade/marker; do not resend or use agy fallback. One global deadline covers RPC, reconciliation, and eligible fallback, so expiration skips fallback.
+
+mission_id/lane_id describe intentional fan-out: same request plus same lane is a retry, while a different lane is a distinct worker. PowerShell has no separate persistent journal. A full antigravity_squad coordinator is not implemented.
+
+See [AWS idempotent APIs](https://docs.aws.amazon.com/ec2/latest/devguide/ec2-api-idempotency.html) and MCP [progress](https://modelcontextprotocol.io/specification/latest/basic/patterns/progress)/[cancellation](https://modelcontextprotocol.io/specification/latest/basic/patterns/cancellation).

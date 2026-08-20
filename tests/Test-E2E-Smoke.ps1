@@ -11,7 +11,7 @@ $RepoRoot = Split-Path -Parent $ScriptDir
 Write-Host "=== Antigravity Bridge E2E Smoke Test ===" -ForegroundColor Cyan
 
 # 1. Discover Session
-$DiscoverScript = Join-Path $RepoRoot "scripts\Discover-AntigravitySession.ps1"
+$DiscoverScript = Join-Path $RepoRoot 'scripts/Discover-AntigravitySession.ps1'
 if (-not (Test-Path $DiscoverScript)) {
     throw "Discover script not found at: $DiscoverScript"
 }
@@ -32,11 +32,19 @@ try {
 
 # 2. Test RPC Ping / Port Connectivity
 Write-Host "[2/3] Testing Local HTTPS Port Connectivity..." -ForegroundColor Yellow
-$rpcScript = Join-Path $RepoRoot "scripts\Invoke-AntigravityRpc.ps1"
+$rpcScript = Join-Path $RepoRoot 'scripts/Invoke-AntigravityRpc.ps1'
 . $rpcScript
 
-if ($session) {
+try {
+    $client = [System.Net.Sockets.TcpClient]::new()
+    $pendingConnect = $client.BeginConnect('127.0.0.1', [int]$session.HttpsPort, $null, $null)
+    if (-not $pendingConnect.AsyncWaitHandle.WaitOne([TimeSpan]::FromSeconds(5))) {
+        throw "HTTPS port $($session.HttpsPort) did not accept a loopback connection within 5 seconds."
+    }
+    $client.EndConnect($pendingConnect)
     Write-Host "  HTTPS Port $($session.HttpsPort) Connectivity Test PASSED." -ForegroundColor Green
+} finally {
+    if ($client) { $client.Dispose() }
 }
 
 # 3. Test Cascade Creation if live and not skipped

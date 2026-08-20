@@ -93,3 +93,8 @@ Return:
 - Prefer one task packet per objective.
 - If the task contains unrelated goals, split it before delegation.
 - If acceptance checks are hard to write, the task is probably underspecified.
+### Delivery identity
+
+For bridge-delivered work, create one UUID request_id before the first send, retain its receipt, and repeat that exact key for retries. Do not send a new prompt after a non-terminal receipt; reconcile the saved key with the same cascade/marker.
+
+For intentional parallel experts, state mission_id and give each independent worker a different lane_id. The same request plus the same lane is a retry, not another worker. Do not assume antigravity_squad coordination exists.
