@@ -16,7 +16,7 @@ $scriptText = Get-Content "$PSScriptRoot\..\scripts\Run-AntigravityCapabilityMat
 if ($scriptText -match 'MODEL_PLACEHOLDER_M36') {
     throw 'Capability matrix should not use a placeholder default model'
 }
-if ($scriptText -match 'd:\\MyGame\|file:///d:/MyGame') {
+if ($scriptText -match '(?:d:\\MyGame|file:///d:/MyGame)') {
     throw 'Capability matrix still hardcodes D:\MyGame in workspace-awareness checks'
 }
 if ($scriptText -match '今天 2026-06-21') {

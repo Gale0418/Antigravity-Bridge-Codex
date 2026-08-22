@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import queue
 import shutil
 import subprocess
 import sys
@@ -74,7 +75,8 @@ class AntigravityBridgePythonTests(unittest.TestCase):
                 bridge.resolve_gui_launch_command("Windows"),
                 ["explorer.exe", r"shell:AppsFolder\Google.Antigravity"],
             )
-        self.assertEqual(bridge.resolve_gui_launch_command("macOS"), ["open", "-a", "Antigravity"])
+        with patch.dict(os.environ, {"ANTIGRAVITY_GUI_PATH": ""}, clear=False):
+            self.assertEqual(bridge.resolve_gui_launch_command("macOS"), ["open", "-a", "Antigravity"])
         with patch.dict(os.environ, {"DISPLAY": ":99"}, clear=False), patch.object(Path, "is_file", return_value=True):
             self.assertEqual(bridge.resolve_gui_launch_command("Linux", "/usr/bin/antigravity"), ["/usr/bin/antigravity"])
 
@@ -436,10 +438,10 @@ class AntigravityBridgePythonTests(unittest.TestCase):
         try:
             process.stdin.write(b"\xff\n")
             process.stdin.flush()
-            parse_error = json.loads(process.stdout.readline().decode("utf-8"))
+            parse_error = json.loads(self._read_mcp_line(process).decode("utf-8"))
             process.stdin.write(b"[]\n")
             process.stdin.flush()
-            invalid_request = json.loads(process.stdout.readline().decode("utf-8"))
+            invalid_request = json.loads(self._read_mcp_line(process).decode("utf-8"))
             initialize = self._mcp_request(process, 1, "initialize")
             tools = self._mcp_request(process, 2, "tools/list")
             discover = self._mcp_request(
@@ -527,6 +529,20 @@ class AntigravityBridgePythonTests(unittest.TestCase):
         env["APPDATA"] = str(home / "AppData" / "Roaming")
         return env
 
+    def _read_mcp_line(self, process: subprocess.Popen, timeout_seconds: float = 5.0) -> bytes:
+        import threading
+
+        result: queue.Queue[bytes] = queue.Queue(maxsize=1)
+        reader = threading.Thread(target=lambda: result.put(process.stdout.readline()), daemon=True)
+        reader.start()
+        try:
+            line = result.get(timeout=timeout_seconds)
+        except queue.Empty as exc:
+            raise AssertionError(f"MCP server did not answer within {timeout_seconds}s; exit={process.poll()}") from exc
+        if not line:
+            raise AssertionError("MCP server closed stdout before returning a response")
+        return line
+
     def _mcp_request(self, process: subprocess.Popen, request_id: int, method: str, params: dict | None = None) -> dict:
         req = {"jsonrpc": "2.0", "id": request_id, "method": method}
         if params is not None:
@@ -535,9 +551,7 @@ class AntigravityBridgePythonTests(unittest.TestCase):
         process.stdin.write(payload + b"\n")
         process.stdin.flush()
 
-        line = process.stdout.readline()
-        if not line:
-            raise AssertionError("MCP server closed stdout before returning a response")
+        line = self._read_mcp_line(process)
         return json.loads(line.decode("utf-8"))
 
 
@@ -1136,14 +1150,26 @@ class AntigravityRequestJournalTests(unittest.TestCase):
         self.assertEqual(receipt["lane_id"], "l-1")
         self.assertEqual(receipt["delivery_guarantee"], "best_effort_no_persistent_deduplication")
 
-    def test_journal_redacts_common_secrets_and_mcp_conflict_is_error(self):
+    def test_journal_redacts_common_secrets(self):
         root = fresh_test_dir("redact-secrets")
         journal_path = str(root / "requests.sqlite3")
         journal = bridge.RequestJournal(journal_path)
-        secret_prompt = "token bearer_1234567890abcdef1234567890abcdef key sk-1234567890abcdef1234567890abcdef"
-        fp = bridge.request_fingerprint(secret_prompt, "", "m-1", str(root.resolve()), "", "")
-        self.assertNotIn("bearer_1234567890abcdef1234567890abcdef", fp)
+        secret = "secret_1234567890abcdef"
+        journal.claim("redact-key", "fingerprint")
+        journal.finish(
+            "redact-key",
+            {
+                "delivery_state": "COMPLETED",
+                "response": f"Authorization: Bearer {secret}",
+                "error": f"csrf_token={secret}",
+            },
+        )
+        replay = journal.claim("redact-key", "fingerprint")
+        persisted = json.dumps(replay["receipt"], ensure_ascii=False)
+        self.assertNotIn(secret, persisted)
+        self.assertIn("<redacted>", persisted)
 
+    def test_mcp_conflict_is_error(self):
         server_spec = importlib.util.spec_from_file_location("antigravity_mcp_conflict", REPO_ROOT / "mcp" / "antigravity_bridge_server.py")
         server = importlib.util.module_from_spec(server_spec)
         server_spec.loader.exec_module(server)
