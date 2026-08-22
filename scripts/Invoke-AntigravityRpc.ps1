@@ -342,17 +342,10 @@ function Send-AntigravityMessage {
         $resolvedModel = Resolve-AntigravityModelSelection -Model $Model
         $body.cascadeConfig = @{
             plannerConfig = @{
-                $(if ($resolvedModel.ModelEnum) {
-                    'planModel'
-                } else {
-                    'requestedModel'
-                }) = $(if ($resolvedModel.ModelEnum) {
-                    $resolvedModel.ModelEnum
-                } else {
-                    @{
-                        model = $resolvedModel.ModelId
-                    }
-                })
+                declarativeMixinConfig = @{}
+                requestedModel = @{
+                    model = $(if ($resolvedModel.ModelEnum) { $resolvedModel.ModelEnum } else { $resolvedModel.ModelId })
+                }
             }
         }
     }

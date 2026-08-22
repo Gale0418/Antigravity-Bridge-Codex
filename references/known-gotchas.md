@@ -58,8 +58,11 @@ If Antigravity shows `Agent execution terminated due to error` with that exact f
 Current macOS/Windows bridge behavior:
 
 - top-level `StartCascade.requestedModel` prefers the paired internal enum such as `MODEL_PLACEHOLDER_M36` when a recent successful local conversation exposes it
-- `SendUserCascadeMessage.cascadeConfig.plannerConfig.planModel` also prefers that internal enum
-- when no enum mapping is discoverable, the bridge falls back to the older explicit model-id path
+- `SendUserCascadeMessage` supplies both an empty `declarativeMixinConfig` (which preserves built-in
+  planner components) and `requestedModel.model`. Sending only `plannerConfig.planModel` fails on
+  current executors with `planner config is not declarative: not set`; omitting planner config on a
+  fresh cascade can instead fail with `neither PlanModel nor RequestedModel specified`.
+- Direct diagnostic calls can still omit the planner config explicitly for negative testing.
 
 ## New Trajectory Shape
 

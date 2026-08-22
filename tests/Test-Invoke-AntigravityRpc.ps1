@@ -12,8 +12,38 @@ if ($rpcScriptText -notmatch 'UNC paths are currently not supported') {
 if ($rpcScriptText -notmatch 'Find-AntigravityRecentModel') {
     throw 'Invoke-AntigravityRpc should include recent local model discovery'
 }
-if ($rpcScriptText -notmatch 'planModel') {
-    throw 'Invoke-AntigravityRpc should set plannerConfig.planModel when an internal model enum is available'
+if ($rpcScriptText -notmatch 'declarativeMixinConfig') {
+    throw 'Invoke-AntigravityRpc should emit a declarative planner config.'
+}
+
+# Current executors require a declarative planner config plus requestedModel.
+# Keep explicit omission available only for diagnostics and negative tests.
+$originalInvokeRpc = ${function:Invoke-AntigravityRpc}
+try {
+    ${function:Invoke-AntigravityRpc} = {
+        param([string]$Method, [hashtable]$Body, [int]$RequestTimeoutSeconds, [datetime]$DeadlineUtc, [psobject]$Session)
+        $script:capturedSendBody = $Body
+        return [pscustomobject]@{ accepted = $true }
+    }
+    $capturedSendBody = $null
+    Send-AntigravityMessage -CascadeId 'cascade-preserve' -Text 'hello' -Model 'MODEL_PLACEHOLDER_M71' -OmitRequestedModel -Session ([pscustomobject]@{}) | Out-Null
+    if ($capturedSendBody.ContainsKey('cascadeConfig')) {
+        throw 'OmitRequestedModel should preserve the existing planner config by omitting cascadeConfig.'
+    }
+
+    Send-AntigravityMessage -CascadeId 'cascade-configured' -Text 'hello' -Model 'MODEL_PLACEHOLDER_M71' -Session ([pscustomobject]@{}) | Out-Null
+    $planner = $capturedSendBody.cascadeConfig.plannerConfig
+    if ($null -eq $planner.declarativeMixinConfig) {
+        throw 'A configured send should emit declarativeMixinConfig.'
+    }
+    if ($planner.requestedModel.model -ne 'MODEL_PLACEHOLDER_M71') {
+        throw 'A configured send should emit requestedModel.model.'
+    }
+    if ($planner.ContainsKey('planModel')) {
+        throw 'A configured send should not emit the obsolete partial planModel override.'
+    }
+} finally {
+    ${function:Invoke-AntigravityRpc} = $originalInvokeRpc
 }
 
 $trajectoryUri = Get-AntigravityServiceUri -HttpPort 50609 -Method 'GetCascadeTrajectory'

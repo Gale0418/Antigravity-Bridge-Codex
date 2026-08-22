@@ -29,7 +29,12 @@ def load_installer_module():
     installer_spec.loader.exec_module(installer)
     return installer
 
-TEST_TMP_ROOT = REPO_ROOT / ".tmp" / "python-tests"
+TEST_TMP_ROOT = Path(
+    os.environ.get(
+        "ANTIGRAVITY_TEST_TMP_ROOT",
+        str(Path(tempfile.gettempdir()) / "antigravity-bridge-codex-tests"),
+    )
+)
 
 
 def fresh_test_dir(name: str) -> Path:
@@ -407,6 +412,33 @@ class AntigravityRegressionRestorationTests(unittest.TestCase):
             selection = bridge.resolve_model_selection(bridge.DEFAULT_AGY_MODEL)
         self.assertEqual(selection.model_enum, bridge.KNOWN_MODEL_ENUMS[bridge.DEFAULT_AGY_MODEL])
 
+    def test_send_message_emits_minimal_declarative_planner_config(self):
+        selection = bridge.ModelSelection("gemini-test", "MODEL_PLACEHOLDER_M71")
+        with patch.object(bridge, "resolve_model_selection", return_value=selection), patch.object(
+            bridge, "invoke_rpc", return_value={}
+        ) as invoke_rpc:
+            bridge.send_message(
+                "cascade-1",
+                "hello",
+                model="gemini-test",
+                omit_requested_model=True,
+                session=object(),
+            )
+            omit_body = invoke_rpc.call_args.args[1]
+            self.assertNotIn("cascadeConfig", omit_body)
+
+            bridge.send_message(
+                "cascade-1",
+                "hello",
+                model="gemini-test",
+                session=object(),
+            )
+            configured_body = invoke_rpc.call_args.args[1]
+            planner = configured_body["cascadeConfig"]["plannerConfig"]
+            self.assertEqual(planner["declarativeMixinConfig"], {})
+            self.assertEqual(planner["requestedModel"]["model"], "MODEL_PLACEHOLDER_M71")
+            self.assertNotIn("planModel", planner)
+
     def test_run_agy_prompt_nonzero_exit_is_error(self):
         root = fresh_test_dir("agy-nonzero")
         process = MagicMock()
@@ -573,6 +605,7 @@ class AntigravityRequestJournalTests(unittest.TestCase):
         self.assertEqual(receipt["status"], "COMPLETED")
         self.assertEqual(new_cascade.call_count, 1)
         self.assertEqual(send_message.call_count, 1)
+        self.assertFalse(send_message.call_args.kwargs.get("omit_requested_model", False))
 
     def test_continuation_rpc_conversation_does_not_call_start_cascade(self):
         root = fresh_test_dir("continuation-rpc-cascade")
@@ -593,6 +626,7 @@ class AntigravityRequestJournalTests(unittest.TestCase):
         new_cascade.assert_not_called()
         self.assertEqual(send_message.call_count, 1)
         self.assertEqual(send_message.call_args.args[0], "existing-cascade-999")
+        self.assertFalse(send_message.call_args.kwargs.get("omit_requested_model", False))
 
     def test_turn_a_then_turn_b_cannot_return_stale_a(self):
         root = fresh_test_dir("turn-a-then-b")
@@ -912,6 +946,8 @@ class AntigravityRequestJournalTests(unittest.TestCase):
         self.assertTrue(res_start["matched"])
         self.assertTrue(res_send["matched"])
         self.assertIn("ANTIGRAVITY_BRIDGE_MARKER_", send.call_args_list[0].args[1])
+        self.assertFalse(send.call_args_list[0].kwargs.get("omit_requested_model", False))
+        self.assertFalse(send.call_args_list[1].kwargs.get("omit_requested_model", False))
 
     def test_normalize_mcp_manifest_resolves_absolute_args_and_cwd(self):
         installer = load_installer_module()

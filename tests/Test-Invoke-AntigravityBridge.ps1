@@ -37,16 +37,16 @@ $offlineRpcMock = [string]::Join("`n", @(
     'function Get-AntigravitySessionInfo { return [pscustomobject]@{ HttpPort = 1; CsrfToken = "offline" } }',
     'function Resolve-AntigravityModelSelection { param([string]$Model) return [pscustomobject]@{ ModelId = $Model; ModelEnum = "" } }',
     'function New-AntigravityCascade { param([string]$Model,[string[]]$WorkspacePaths,[string]$CascadeId,[datetime]$DeadlineUtc,[psobject]$Session) if ($env:ANTIGRAVITY_OFFLINE_SCENARIO -eq "predispatch") { throw "offline start failure" }; return [pscustomobject]@{ CascadeId = "offline-server-cascade" } }',
-    'function Send-AntigravityMessage { param([string]$CascadeId,[string]$Text,[string]$Model,[switch]$OmitRequestedModel,[datetime]$DeadlineUtc,[psobject]$Session) if ([string]::IsNullOrWhiteSpace($CascadeId)) { throw "offline send did not receive a cascade id" }; return [pscustomobject]@{ accepted = $true } }',
+    'function Send-AntigravityMessage { param([string]$CascadeId,[string]$Text,[string]$Model,[switch]$OmitRequestedModel,[datetime]$DeadlineUtc,[psobject]$Session) if ([string]::IsNullOrWhiteSpace($CascadeId)) { throw "offline send did not receive a cascade id" }; if ($env:ANTIGRAVITY_OFFLINE_REQUIRE_CONFIG -eq "true" -and $OmitRequestedModel) { throw "high-level sends must include declarative planner config" }; return [pscustomobject]@{ accepted = $true } }',
     'function Wait-AntigravityTrajectoryMatchResult { param([string]$CascadeId,[string]$Pattern,[datetime]$DeadlineUtc,[psobject]$Session) if ($env:ANTIGRAVITY_OFFLINE_SCENARIO -eq "timeout") { return [pscustomobject]@{ matched = $false; timedOut = $true; response = ""; failure = "" } }; return [pscustomobject]@{ matched = $true; timedOut = $false; response = "OFFLINE_OK"; failure = "" } }'
 ))
 $offlineLauncher = $visibleRpcMatch.Groups[1].Value + "`n`$result = Invoke-VisibleRpcPrompt -Prompt 'offline prompt' -ActionName `$env:ANTIGRAVITY_OFFLINE_ACTION -CascadeId `$env:ANTIGRAVITY_OFFLINE_CASCADE -Model 'offline-model' -WorkspacePath `$env:ANTIGRAVITY_OFFLINE_WORKSPACE -DeadlineUtc ([datetime]::UtcNow.AddSeconds(5)) -RequestId 'request-1' -MissionId 'mission-1' -LaneId 'lane-1'`n`$result | ConvertTo-Json -Depth 8"
 [System.IO.File]::WriteAllText((Join-Path $offlineRpcRoot 'Invoke-AntigravityRpc.ps1'), $offlineRpcMock, [System.Text.UTF8Encoding]::new($false))
 $offlineLauncherPath = Join-Path $offlineRpcRoot 'Run-OfflineBridgeRpc.ps1'
 [System.IO.File]::WriteAllText($offlineLauncherPath, $offlineLauncher, [System.Text.UTF8Encoding]::new($false))
-$previousOfflineScenario = $env:ANTIGRAVITY_OFFLINE_SCENARIO; $previousOfflineAction = $env:ANTIGRAVITY_OFFLINE_ACTION; $previousOfflineCascade = $env:ANTIGRAVITY_OFFLINE_CASCADE; $previousOfflineWorkspace = $env:ANTIGRAVITY_OFFLINE_WORKSPACE
+$previousOfflineScenario = $env:ANTIGRAVITY_OFFLINE_SCENARIO; $previousOfflineAction = $env:ANTIGRAVITY_OFFLINE_ACTION; $previousOfflineCascade = $env:ANTIGRAVITY_OFFLINE_CASCADE; $previousOfflineWorkspace = $env:ANTIGRAVITY_OFFLINE_WORKSPACE; $previousOfflineRequireConfig = $env:ANTIGRAVITY_OFFLINE_REQUIRE_CONFIG
 try {
-    $env:ANTIGRAVITY_OFFLINE_SCENARIO = 'success'; $env:ANTIGRAVITY_OFFLINE_ACTION = 'start'; $env:ANTIGRAVITY_OFFLINE_CASCADE = ''; $env:ANTIGRAVITY_OFFLINE_WORKSPACE = (Resolve-Path .).Path
+    $env:ANTIGRAVITY_OFFLINE_SCENARIO = 'success'; $env:ANTIGRAVITY_OFFLINE_ACTION = 'start'; $env:ANTIGRAVITY_OFFLINE_CASCADE = ''; $env:ANTIGRAVITY_OFFLINE_WORKSPACE = (Resolve-Path .).Path; $env:ANTIGRAVITY_OFFLINE_REQUIRE_CONFIG = 'true'
     $offlineStart = (& $offlineLauncherPath) | ConvertFrom-Json
     if ($offlineStart.cascadeId -ne 'offline-server-cascade' -or $offlineStart.conversationId -ne 'offline-server-cascade' -or $offlineStart.requestId -ne 'request-1' -or $offlineStart.missionId -ne 'mission-1' -or $offlineStart.laneId -ne 'lane-1') { throw 'Offline RPC start should round-trip the server cascade id and correlation ids.' }
     $env:ANTIGRAVITY_OFFLINE_SCENARIO = 'timeout'; $env:ANTIGRAVITY_OFFLINE_ACTION = 'send'; $env:ANTIGRAVITY_OFFLINE_CASCADE = 'existing-offline-cascade'
@@ -57,7 +57,7 @@ try {
     if (-not $offlinePreDispatch.safe_to_fallback -or $offlinePreDispatch.delivery_state -ne 'PRE_DISPATCH_FAILED') { throw 'A pre-dispatch RPC failure should remain eligible for auto fallback.' }
 } finally {
     Remove-Item -LiteralPath $offlineRpcRoot -Recurse -Force -ErrorAction SilentlyContinue
-    $env:ANTIGRAVITY_OFFLINE_SCENARIO = $previousOfflineScenario; $env:ANTIGRAVITY_OFFLINE_ACTION = $previousOfflineAction; $env:ANTIGRAVITY_OFFLINE_CASCADE = $previousOfflineCascade; $env:ANTIGRAVITY_OFFLINE_WORKSPACE = $previousOfflineWorkspace
+    $env:ANTIGRAVITY_OFFLINE_SCENARIO = $previousOfflineScenario; $env:ANTIGRAVITY_OFFLINE_ACTION = $previousOfflineAction; $env:ANTIGRAVITY_OFFLINE_CASCADE = $previousOfflineCascade; $env:ANTIGRAVITY_OFFLINE_WORKSPACE = $previousOfflineWorkspace; $env:ANTIGRAVITY_OFFLINE_REQUIRE_CONFIG = $previousOfflineRequireConfig
 }
 
 $previousAntigravityModel = $env:ANTIGRAVITY_MODEL

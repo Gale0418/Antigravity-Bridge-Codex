@@ -5,5 +5,9 @@ __pycache__/
 *.py[cod]
 .tmp/
 .tmp_*/
+.pytest_cache/
+.test-tmp/
+/antigravity-*-????????/
+/pytest-cache-files-????????/
 .tmp_python_probe.txt
 .worktrees/

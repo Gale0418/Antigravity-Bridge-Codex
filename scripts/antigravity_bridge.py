@@ -1798,9 +1798,13 @@ def send_message(
         resolved_model = resolve_model_selection(model)
         body["cascadeConfig"] = {
             "plannerConfig": {
-                "planModel" if resolved_model.model_enum else "requestedModel": (
-                    resolved_model.model_enum if resolved_model.model_enum else {"model": resolved_model.model_id}
-                )
+                # Current Antigravity executors require the planner to be
+                # explicitly declarative. An empty mixin keeps the built-in
+                # components while requestedModel selects the generator.
+                "declarativeMixinConfig": {},
+                "requestedModel": {
+                    "model": resolved_model.model_enum or resolved_model.model_id,
+                },
             }
         }
     return invoke_rpc("SendUserCascadeMessage", body, session, deadline)
@@ -2708,7 +2712,12 @@ def run(args: argparse.Namespace) -> Any:
             prompt = args.opening_prompt
 
         cascade = new_cascade([args.workspace_path], model=args.model, session=session)
-        send_message(cascade["cascadeId"], prompt, model=args.model, session=session)
+        send_message(
+            cascade["cascadeId"],
+            prompt,
+            model=args.model,
+            session=session,
+        )
         outcome = wait_trajectory_outcome(cascade["cascadeId"], pattern, args.timeout_seconds, session=session)
         if (outcome.get("timedOut") or outcome.get("failure")) and not args.allow_timeout:
             err_msg = outcome.get("failure") or f"Action 'start' timed out waiting for pattern {pattern} in cascade {cascade['cascadeId']}. Re-run with --allow-timeout to inspect partial output."
@@ -2738,7 +2747,12 @@ def run(args: argparse.Namespace) -> Any:
         return get_trajectory(args.cascade_id, args.verbosity, session=session)
     if args.action == "smoke":
         cascade = new_cascade([args.workspace_path], model=args.model, session=session)
-        send_message(cascade["cascadeId"], args.prompt, model=args.model, session=session)
+        send_message(
+            cascade["cascadeId"],
+            args.prompt,
+            model=args.model,
+            session=session,
+        )
         outcome = wait_trajectory_outcome(cascade["cascadeId"], args.pattern, args.timeout_seconds, session=session)
         if outcome["timedOut"] and not args.allow_timeout:
             raise RuntimeError(
