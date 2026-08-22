@@ -46,6 +46,218 @@ def fresh_test_dir(name: str) -> Path:
 
 
 class AntigravityBridgePythonTests(unittest.TestCase):
+    def test_mcp_auto_launch_requires_boolean(self):
+        server_spec = importlib.util.spec_from_file_location("antigravity_mcp_bool", REPO_ROOT / "mcp" / "antigravity_bridge_server.py")
+        server = importlib.util.module_from_spec(server_spec)
+        server_spec.loader.exec_module(server)
+        result = server.handle_request(
+            {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {"name": "antigravity_prompt", "arguments": {"prompt": "x", "auto_launch": "false"}},
+            }
+        )
+        self.assertTrue(result["result"]["isError"])
+        self.assertIn("must be a boolean", result["result"]["content"][0]["text"])
+
+    def test_gui_launch_command_has_platform_specific_non_shell_branches(self):
+        with patch.dict(os.environ, {"ANTIGRAVITY_GUI_PATH": "C:\\Apps\\Antigravity.exe"}, clear=False), patch.object(
+            Path, "is_file", return_value=True
+        ):
+            self.assertEqual(
+                bridge.resolve_gui_launch_command("Windows"),
+                ["C:\\Apps\\Antigravity.exe"],
+            )
+        with patch.dict(os.environ, {"ANTIGRAVITY_GUI_PATH": ""}, clear=False):
+            self.assertEqual(
+                bridge.resolve_gui_launch_command("Windows"),
+                ["explorer.exe", r"shell:AppsFolder\Google.Antigravity"],
+            )
+        self.assertEqual(bridge.resolve_gui_launch_command("macOS"), ["open", "-a", "Antigravity"])
+        with patch.dict(os.environ, {"DISPLAY": ":99"}, clear=False), patch.object(Path, "is_file", return_value=True):
+            self.assertEqual(bridge.resolve_gui_launch_command("Linux", "/usr/bin/antigravity"), ["/usr/bin/antigravity"])
+
+    def test_prepare_session_launches_only_after_pre_dispatch_unavailable(self):
+        fake_session = bridge.AntigravitySession("token", "", 0, 1234, 4321, "", "")
+        launched = []
+        with patch.object(
+            bridge,
+            "get_session_info",
+            side_effect=[RuntimeError("connection refused"), RuntimeError("logs unavailable")],
+        ), patch.object(bridge, "launch_antigravity_gui", side_effect=lambda **kwargs: launched.append(kwargs) or {"status": "LAUNCHED"}), patch.object(
+            bridge,
+            "wait_for_session_ready",
+            return_value=(fake_session, {"status": bridge.HealthState.HEALTHY, "probe": True}),
+        ) as wait:
+            session, info = bridge.prepare_session_for_dispatch(
+                auto_launch=True,
+                auto_launch_timeout_seconds=2,
+                auto_launch_poll_interval_seconds=0.01,
+                gui_path="fake",
+                platform_name="Windows",
+                gui_launcher=lambda command: None,
+                process_scanner=lambda: False,
+            )
+        self.assertIs(session, fake_session)
+        self.assertTrue(info["attempted"])
+        self.assertEqual(len(launched), 1)
+        wait.assert_called_once()
+
+    def test_prepare_session_never_launches_second_app_for_live_but_unready_process(self):
+        fake_session = bridge.AntigravitySession("token", "", 0, 1234, 4321, "", "")
+        with patch.object(bridge, "get_session_info", return_value=fake_session), patch.object(
+            bridge, "is_process_alive", return_value=True
+        ), patch.object(bridge, "invoke_rpc", side_effect=RuntimeError("connection refused")), patch.object(
+            bridge,
+            "wait_for_session_ready",
+            return_value=(fake_session, {"status": bridge.HealthState.HEALTHY, "probe": True}),
+        ), patch.object(bridge, "launch_antigravity_gui") as launch:
+            session, info = bridge.prepare_session_for_dispatch(
+                auto_launch=True,
+                auto_launch_timeout_seconds=2,
+                auto_launch_poll_interval_seconds=0.01,
+                gui_path="fake",
+                platform_name="Windows",
+            )
+        self.assertIs(session, fake_session)
+        self.assertFalse(info["attempted"])
+        launch.assert_not_called()
+
+    def test_prepare_session_does_not_launch_for_input_required(self):
+        fake_session = bridge.AntigravitySession("token", "", 0, 1234, 4321, "", "")
+        with patch.object(bridge, "get_session_info", return_value=fake_session), patch.object(
+            bridge, "is_process_alive", return_value=True
+        ), patch.object(bridge, "invoke_rpc", side_effect=RuntimeError("HTTP 401 unauthorized")), patch.object(
+            bridge, "launch_antigravity_gui"
+        ) as launch:
+            session, info = bridge.prepare_session_for_dispatch(
+                auto_launch=True,
+                auto_launch_timeout_seconds=2,
+                auto_launch_poll_interval_seconds=0.01,
+                gui_path="fake",
+                platform_name="Windows",
+            )
+        self.assertIsNone(session)
+        self.assertEqual(info["status"], bridge.HealthState.INPUT_REQUIRED)
+        launch.assert_not_called()
+
+    def test_gui_launch_lock_allows_only_one_owner(self):
+        root = fresh_test_dir("gui-launch-lock")
+        lock_path = root / "gui-launch.lock"
+        first, first_info = bridge.acquire_gui_launch_lock(str(lock_path))
+        second, second_info = bridge.acquire_gui_launch_lock(str(lock_path))
+        try:
+            self.assertIsNotNone(first)
+            self.assertIsNone(second)
+            self.assertEqual(first_info["status"], "ACQUIRED")
+            self.assertEqual(second_info["status"], "BUSY")
+        finally:
+            bridge.release_gui_launch_lock(first)
+
+    def test_half_written_launch_lock_is_busy_until_stale(self):
+        root = fresh_test_dir("gui-launch-half-lock")
+        lock_path = root / "gui-launch.lock"
+        lock_path.write_text("{\"pid\":", encoding="utf-8")
+        lock, info = bridge.acquire_gui_launch_lock(str(lock_path), stale_seconds=60)
+        self.assertIsNone(lock)
+        self.assertEqual(info["status"], "BUSY")
+
+    def test_lock_recheck_waits_when_app_appears_before_launch(self):
+        root = fresh_test_dir("gui-launch-race")
+        fake_session = bridge.AntigravitySession("token", "", 0, 1234, 4321, "", "")
+        lock_path = root / "gui-launch.lock"
+        with patch.object(
+            bridge,
+            "get_session_info",
+            side_effect=[RuntimeError("connection refused"), RuntimeError("logs unavailable"), fake_session],
+        ), patch.object(bridge, "acquire_gui_launch_lock", return_value=(lock_path, {"status": "ACQUIRED"})), patch.object(
+            bridge, "is_process_alive", return_value=True
+        ), patch.object(bridge, "wait_for_session_ready", return_value=(fake_session, {"status": bridge.HealthState.HEALTHY})), patch.object(
+            bridge, "launch_antigravity_gui"
+        ) as launch:
+            session, info = bridge.prepare_session_for_dispatch(
+                auto_launch=True,
+                auto_launch_timeout_seconds=1,
+                auto_launch_poll_interval_seconds=0.01,
+                gui_path="fake",
+                platform_name="Windows",
+                process_scanner=lambda: False,
+            )
+        self.assertIs(session, fake_session)
+        self.assertTrue(info.get("coalesced"))
+        launch.assert_not_called()
+
+    def test_lock_recheck_scans_when_discovery_pid_is_stale(self):
+        root = fresh_test_dir("gui-launch-stale-session")
+        stale_session = bridge.AntigravitySession("token", "", 0, 1234, 4321, "", "")
+        lock_path = root / "gui-launch.lock"
+        with patch.object(bridge, "get_session_info", return_value=stale_session), patch.object(
+            bridge, "is_process_alive", return_value=False
+        ), patch.object(bridge, "acquire_gui_launch_lock", return_value=(lock_path, {"status": "ACQUIRED"})), patch.object(
+            bridge, "wait_for_session_ready", return_value=(None, {"status": bridge.HealthState.UNAVAILABLE})
+        ), patch.object(bridge, "launch_antigravity_gui") as launch:
+            session, info = bridge.prepare_session_for_dispatch(
+                auto_launch=True,
+                auto_launch_timeout_seconds=1,
+                auto_launch_poll_interval_seconds=0.01,
+                gui_path="",
+                platform_name="Windows",
+                process_scanner=lambda: True,
+            )
+        self.assertIsNone(session)
+        self.assertTrue(info["coalesced"])
+        self.assertFalse(info["attempted"])
+        launch.assert_not_called()
+
+    def test_wait_for_session_ready_propagates_input_required(self):
+        fake_session = bridge.AntigravitySession("token", "", 0, 1234, 4321, "", "")
+        session, info = bridge.wait_for_session_ready(
+            1,
+            discover=lambda: fake_session,
+            alive=lambda _pid: True,
+            probe=lambda _session, _deadline: (_ for _ in ()).throw(RuntimeError("HTTP 401 unauthorized")),
+        )
+        self.assertIsNone(session)
+        self.assertEqual(info["status"], bridge.HealthState.INPUT_REQUIRED)
+
+    def test_wait_for_session_ready_retries_startup_http_400(self):
+        fake_session = bridge.AntigravitySession("token", "", 0, 1234, 4321, "", "")
+        probes = iter([RuntimeError("HTTP 400"), {"ok": True}])
+
+        def probe(_session, _deadline):
+            outcome = next(probes)
+            if isinstance(outcome, Exception):
+                raise outcome
+            return outcome
+
+        session, info = bridge.wait_for_session_ready(
+            1,
+            poll_interval_seconds=0.01,
+            discover=lambda: fake_session,
+            alive=lambda _pid: True,
+            probe=probe,
+        )
+        self.assertIs(session, fake_session)
+        self.assertEqual(info["status"], bridge.HealthState.HEALTHY)
+
+    def test_windows_unknown_process_scan_blocks_launch(self):
+        with patch.object(bridge, "get_session_info", side_effect=RuntimeError("connection refused")), patch.object(
+            bridge, "wait_for_session_ready", return_value=(None, {"status": bridge.HealthState.UNAVAILABLE})
+        ) as wait, patch.object(bridge, "launch_antigravity_gui") as launch:
+            session, info = bridge.prepare_session_for_dispatch(
+                auto_launch=True,
+                auto_launch_timeout_seconds=1,
+                auto_launch_poll_interval_seconds=0.01,
+                gui_path="fake",
+                platform_name="Windows",
+                process_scanner=lambda: None,
+            )
+        self.assertIsNone(session)
+        self.assertIsNone(info["process_scan"])
+        wait.assert_called_once()
+        launch.assert_not_called()
+
     def test_best_effort_native_cleanup_ignores_launch_oserror(self):
         installer = load_installer_module()
         with patch.object(installer.subprocess, "run", side_effect=OSError("missing executable")):
@@ -588,6 +800,25 @@ class AntigravityRequestJournalTests(unittest.TestCase):
             patch.object(bridge, "wait_trajectory_outcome", return_value={"matched": True, "timedOut": False, "response": "ok", "failure": ""}),
         )
 
+    def test_not_sent_claim_is_atomically_reset_for_retry_but_terminal_replays(self):
+        root = fresh_test_dir("request-not-sent-retry")
+        journal = bridge.RequestJournal(str(root / "requests.sqlite3"))
+        fingerprint = bridge.request_fingerprint("hello", "", "", str(root.resolve()), "", "")
+        self.assertEqual(journal.claim("retry-key", fingerprint)["kind"], "new")
+        journal.prepare_delivery("retry-key", "old-cascade", "old-marker", state="PREPARING")
+        journal.finish("retry-key", {"status": "ERROR", "delivery_state": "NOT_SENT", "cascade_id": "old-cascade", "marker": "old-marker"})
+
+        retry = journal.claim("retry-key", fingerprint)
+        self.assertEqual(retry["kind"], "retry")
+        self.assertEqual(retry["state"], "IN_PROGRESS")
+        with journal._connect_db() as db:
+            row = db.execute("SELECT state,cascade_id,marker,receipt FROM requests WHERE request_id=?", ("retry-key",)).fetchone()
+        self.assertEqual(row, ("IN_PROGRESS", "", "", ""))
+
+        journal.finish("retry-key", {"status": "COMPLETED", "delivery_state": "COMPLETED", "cascade_id": "new-cascade"})
+        terminal = journal.claim("retry-key", fingerprint)
+        self.assertEqual(terminal["kind"], "replay")
+
     def test_fresh_rpc_conversation_calls_start_cascade_once(self):
         root = fresh_test_dir("fresh-rpc-cascade")
         journal_path = str(root / "requests.sqlite3")
@@ -770,9 +1001,10 @@ class AntigravityRequestJournalTests(unittest.TestCase):
         journal.prepare_delivery("key-2", "cascade-existing", "MARKER")
         with patch.object(bridge, "get_session_info", return_value=object()), patch.object(
             bridge, "fetch_model_catalog", return_value=[]
-        ), patch.object(bridge, "send_message") as send, patch.object(bridge, "wait_trajectory_outcome", return_value={"matched": False, "timedOut": True, "response": "", "failure": ""}):
-            receipt = bridge.run_visible_rpc_prompt("hello", request_id="key-2", journal_path=journal_path, workspace_path=str(root))
+        ), patch.object(bridge, "send_message") as send, patch.object(bridge, "launch_antigravity_gui") as launch, patch.object(bridge, "wait_trajectory_outcome", return_value={"matched": False, "timedOut": True, "response": "", "failure": ""}):
+            receipt = bridge.run_visible_rpc_prompt("hello", request_id="key-2", journal_path=journal_path, workspace_path=str(root), auto_launch=True)
         send.assert_not_called()
+        launch.assert_not_called()
         self.assertEqual(receipt["status"], "ACCEPTED_PENDING")
         self.assertFalse(receipt["safe_to_fallback"])
 
@@ -1528,6 +1760,35 @@ class AntigravityLaneCoordinationTests(unittest.TestCase):
             self.assertEqual(rec2["status"], "QUOTA_EXCEEDED")
             self.assertEqual(rec2["delivery_state"], "NOT_SENT")
             self.assertEqual(rec2["lane_state"], "EXHAUSTED")
+
+    def test_lane_quota_is_not_consumed_when_auto_launch_stops_before_dispatch(self):
+        root = fresh_test_dir("lane-quota-auto-launch-not-sent")
+        journal_path = str(root / "journal.sqlite3")
+        journal = bridge.RequestJournal(journal_path)
+        journal.claim_lane_lease("mission-1", "lane-A", "owner-1", initial_quota=1)
+        with patch.object(
+            bridge,
+            "prepare_session_for_dispatch",
+            return_value=(None, {"enabled": True, "attempted": True, "status": bridge.HealthState.UNAVAILABLE}),
+        ):
+            rec = bridge.run_visible_rpc_prompt(
+                "prompt blocked before dispatch",
+                request_id="quota-not-sent",
+                journal_path=journal_path,
+                workspace_path=str(root),
+                mission_id="mission-1",
+                lane_id="lane-A",
+                owner_id="owner-1",
+                lane_epoch=1,
+                auto_launch=True,
+            )
+        self.assertEqual(rec["delivery_state"], "NOT_SENT")
+        with journal._connect_db() as db:
+            remaining = db.execute(
+                "SELECT quota_remaining FROM lane_leases WHERE mission_id=? AND lane_id=?",
+                ("mission-1", "lane-A"),
+            ).fetchone()[0]
+        self.assertEqual(remaining, 1)
 
     def test_lane_replay_does_not_consume_quota_twice(self):
         root = fresh_test_dir("lane-replay-quota")

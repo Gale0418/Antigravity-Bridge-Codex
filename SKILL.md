@@ -13,6 +13,8 @@ Use this skill to let Codex collaborate with a locally logged-in Antigravity Gem
 
 Use auto as the normal visible-first transport: it tries Hub-native private loopback RPC first and uses agy only after a confirmed pre-dispatch RPC failure. Once send preparation begins, hard or ambiguous timeouts must reconcile the same request ID and must never fall back or resend. Gemini 3.6 Flash High maps to verified planner enum MODEL_PLACEHOLDER_M71; explicit MODEL_PLACEHOLDER_M values remain supported. RPC receipts report transport, visibility, and IDs. In Antigravity 2.4.3, agy fallback can be completely invisible because it writes .db while the Hub loader expects .pb; never inject or convert protobuf files.
 
+The Python high-level prompt and MCP prompt safely auto-launch the GUI by default only when pre-dispatch discovery confirms the session is unavailable and its process is not alive. They never launch for pending/replayed/ambiguous delivery or after Send starts; a live process is only waited on with a bounded rediscovery/probe. Use `--no-auto-launch` or `auto_launch: false` to disable, and `--gui-path`/`gui_path` for a custom installation. Explicit `agy` transport does not launch the GUI.
+
 Hub-native private loopback RPC is the default visible-first transport, not merely a diagnostic path. It remains local/private; desktop rendering can be version-dependent, so use the receipt visibility field.
 ## Mandatory Operational Directives & Pre-Authorization
 

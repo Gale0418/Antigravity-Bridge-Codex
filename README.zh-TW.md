@@ -139,6 +139,8 @@ PowerShell wrapper 與 `agy` fallback 可追加本機 Markdown 紀錄。可用 `
 
 auto 採可見性優先：先嘗試 Hub-native 環回 RPC，才可能使用 agy。Python 橋接把 prompt 視為傳遞操作，而不是可以任意重送的聊天訊息。
 
+Python `prompt` 與 MCP `antigravity_prompt` 預設啟用安全 GUI auto-launch。只有在派發前確認沒有可用 session 且程序不存在／已死亡時才會開啟桌面程式；不會 kill/restart、不會對仍存活的 PID 開第二份，也不會在 `DELIVERY_UNKNOWN`、`INPUT_REQUIRED`、replay 或 Send 開始後觸發。啟動採跨 bridge process 單飛鎖，接著做有上限的重新 discovery/probe。CLI 可用 `--no-auto-launch`，MCP 可設 `auto_launch: false`；非預設安裝可用 `--gui-path`／`gui_path` 或 `ANTIGRAVITY_GUI_PATH`。明確指定 `agy` transport 不會啟動 GUI。
+
 - 呼叫端應在第一次呼叫前產生 UUID request_id、保留回傳 receipt，並在每次重試沿用相同 key。若未提供，橋接只會替該次呼叫產生；不同呼叫各自產生的 ID 無法跨呼叫去重。
 - 持久 SQLite request journal 預設位於 %LOCALAPPDATA%\AntigravityBridge\requests.sqlite3，僅記錄 fingerprint、傳遞狀態、cascade/marker ID 與 receipt；不保存 prompt 原文或 CSRF token。
 - 同一 request_id 搭配不同請求內容會回傳 CONFLICT，不可當成重試。

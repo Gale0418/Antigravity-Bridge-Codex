@@ -70,6 +70,10 @@ def tools() -> list[dict[str, Any]]:
                     "request_id": {"type": "string", "default": ""},
                     "mission_id": {"type": "string", "default": ""},
                     "lane_id": {"type": "string", "default": ""},
+                    "auto_launch": {"type": "boolean", "default": True, "description": "Open the Antigravity GUI only when pre-dispatch discovery confirms no live session; set false to disable."},
+                    "auto_launch_timeout_seconds": {"type": "number", "default": 30.0},
+                    "auto_launch_poll_interval_seconds": {"type": "number", "default": 0.5},
+                    "gui_path": {"type": "string", "default": ""},
                 },
             },
         },
@@ -154,6 +158,13 @@ def require_string(arguments: dict[str, Any], name: str) -> str:
     return value
 
 
+def optional_bool(arguments: dict[str, Any], name: str, default: bool) -> bool:
+    value = arguments.get(name, default)
+    if not isinstance(value, bool):
+        raise RuntimeError(f"Argument '{name}' must be a boolean")
+    return value
+
+
 def call_tool(name: str, arguments: dict[str, Any]) -> Any:
     if name == "antigravity_prompt":
         prompt = require_string(arguments, "prompt")
@@ -170,6 +181,10 @@ def call_tool(name: str, arguments: dict[str, Any]) -> Any:
             request_id=str(arguments.get("request_id") or ""),
             mission_id=str(arguments.get("mission_id") or ""),
             lane_id=str(arguments.get("lane_id") or ""),
+            auto_launch=optional_bool(arguments, "auto_launch", True),
+            auto_launch_timeout_seconds=float(arguments.get("auto_launch_timeout_seconds", 30.0)),
+            auto_launch_poll_interval_seconds=float(arguments.get("auto_launch_poll_interval_seconds", 0.5)),
+            gui_path=str(arguments.get("gui_path") or ""),
         )
         if not isinstance(receipt, dict):
             raise RuntimeError("Antigravity prompt returned an invalid receipt")

@@ -19,6 +19,7 @@ import sqlite3
 import signal
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.error
 import urllib.parse
@@ -27,7 +28,7 @@ import uuid
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 
 SERVICE_PREFIX = "http://127.0.0.1:{port}/exa.language_server_pb.LanguageServerService/{method}"
@@ -168,11 +169,418 @@ def is_process_alive(pid: int) -> bool:
                 kernel32.CloseHandle(handle)
                 return True
             return False
-        else:
-            os.kill(pid, 0)
-            return True
+        os.kill(pid, 0)
+        return True
     except Exception:
         return False
+
+
+def resolve_gui_launch_command(
+    platform_name: str = "",
+    gui_path: str = "",
+) -> list[str]:
+    """Resolve a non-shell command that opens the Antigravity desktop app.
+
+    The command is deliberately limited to launching the GUI.  It never
+    targets an existing PID and it never asks the OS to terminate anything.
+    ``gui_path`` (or ``ANTIGRAVITY_GUI_PATH``) is preferred for installations
+    that are not on PATH.
+    """
+    resolved_platform = get_platform(platform_name).strip().lower()
+    explicit_path = (gui_path or os.environ.get("ANTIGRAVITY_GUI_PATH", "")).strip()
+
+    if resolved_platform == "windows":
+        if explicit_path:
+            if not Path(explicit_path).is_file():
+                raise RuntimeError(f"Antigravity GUI path not found: {explicit_path}")
+            return [explicit_path]
+        # Use the registered AppsFolder identity by default. Directly spawning
+        # Antigravity.exe can exit immediately instead of activating the
+        # existing Electron app registration, while the AppsFolder activation
+        # works for both per-user and registered package installations.
+        # explorer.exe accepts this AUMID without shell=True or command parsing.
+        return ["explorer.exe", r"shell:AppsFolder\Google.Antigravity"]
+
+    if resolved_platform == "macos":
+        if explicit_path and not Path(explicit_path).exists():
+            raise RuntimeError(f"Antigravity GUI path not found: {explicit_path}")
+        return ["open", "-a", explicit_path or "Antigravity"]
+
+    if resolved_platform == "linux":
+        if not explicit_path:
+            raise RuntimeError("Linux GUI auto-launch requires an explicit gui_path")
+        if not Path(explicit_path).is_file():
+            raise RuntimeError(f"Antigravity GUI path not found: {explicit_path}")
+        if not (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")):
+            raise RuntimeError("Linux GUI auto-launch requires DISPLAY or WAYLAND_DISPLAY")
+        return [explicit_path]
+
+    raise RuntimeError(f"Unsupported platform for Antigravity GUI launch: {platform_name or get_platform()}")
+
+
+def launch_antigravity_gui(
+    *,
+    platform_name: str = "",
+    gui_path: str = "",
+    launcher: Callable[[list[str]], Any] | None = None,
+) -> dict[str, Any]:
+    """Launch Antigravity without shell expansion or process ownership changes.
+
+    ``launcher`` is injectable for tests and may return a ``Popen``-like
+    object.  The default launcher starts the app detached enough that the
+    bridge does not inherit its stdio handles.
+    """
+    resolved_platform = get_platform(platform_name)
+    try:
+        command = resolve_gui_launch_command(platform_name, gui_path)
+        if launcher is not None:
+            process = launcher(command)
+        else:
+            options: dict[str, Any] = {
+                "stdin": subprocess.DEVNULL,
+                "stdout": subprocess.DEVNULL,
+                "stderr": subprocess.DEVNULL,
+                "close_fds": True,
+            }
+            if resolved_platform.strip().lower() == "windows":
+                options["creationflags"] = (
+                    getattr(subprocess, "DETACHED_PROCESS", 0x00000008)
+                    | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0x00000200)
+                )
+            else:
+                options["start_new_session"] = True
+            process = subprocess.Popen(command, **options)
+    except (OSError, RuntimeError, subprocess.SubprocessError) as exc:
+        return {
+            "status": "FAILED",
+            "platform": resolved_platform,
+            "command": locals().get("command", []),
+            "error": str(exc),
+        }
+
+    return {
+        "status": "LAUNCHED",
+        "platform": resolved_platform,
+        "command": command,
+        "process_id": getattr(process, "pid", None),
+    }
+
+
+def is_session_transport_unavailable(error: BaseException | str) -> bool:
+    """Return whether an RPC failure means the loopback server is not ready."""
+    message = str(error).lower()
+    return any(
+        token in message
+        for token in (
+            "connection refused",
+            "connection reset",
+            "local session is unavailable",
+            "session is unavailable",
+            "no log",
+            "not found",
+            "deadline exceeded",
+            "timed out",
+            "timeout",
+        )
+    )
+
+
+def wait_for_session_ready(
+    timeout_seconds: float,
+    *,
+    poll_interval_seconds: float = 0.5,
+    discover: Callable[[], AntigravitySession] | None = None,
+    alive: Callable[[int], bool] | None = None,
+    probe: Callable[[AntigravitySession, float], Any] | None = None,
+) -> tuple[AntigravitySession | None, dict[str, Any]]:
+    """Rediscover and probe a session until ready, bounded by one deadline."""
+    if timeout_seconds <= 0:
+        return None, {"status": HealthState.UNAVAILABLE, "reason": "auto-launch wait deadline expired"}
+
+    discover_fn = discover or get_session_info
+    alive_fn = alive or is_process_alive
+    probe_fn = probe or (
+        lambda session, deadline: invoke_rpc("GetUserStatus", {}, session=session, deadline=deadline)
+    )
+    deadline = time.monotonic() + timeout_seconds
+    interval = max(0.05, min(float(poll_interval_seconds), 2.0))
+    last_error = ""
+    session: AntigravitySession | None = None
+
+    while True:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            break
+        try:
+            session = discover_fn()
+            process_id = int(getattr(session, "process_id", 0) or 0)
+            if process_id and not alive_fn(process_id):
+                last_error = f"Antigravity process {process_id} is not alive"
+            else:
+                probe_fn(session, time.monotonic() + remaining)
+                return session, {"status": HealthState.HEALTHY, "probe": True}
+        except Exception as exc:
+            last_error = str(exc)
+            if classify_predispatch_failure(exc) == HealthState.INPUT_REQUIRED:
+                return None, {"status": HealthState.INPUT_REQUIRED, "reason": last_error}
+            # During GUI startup Antigravity can answer GetUserStatus with
+            # HTTP 400 before StartCascade is actually ready. Keep polling
+            # within the same deadline; only authorization errors stop early.
+            if not is_session_transport_unavailable(exc):
+                session = None
+
+        time.sleep(min(interval, max(0.0, deadline - time.monotonic())))
+
+    return None, {
+        "status": HealthState.UNAVAILABLE,
+        "reason": last_error or "Antigravity session did not become ready before the bounded deadline",
+    }
+
+
+def acquire_gui_launch_lock(lock_path: str = "", stale_seconds: float = 120.0) -> tuple[Path | None, dict[str, Any]]:
+    """Acquire a cross-process single-flight lock for GUI launch."""
+    configured = lock_path or os.environ.get("ANTIGRAVITY_GUI_LAUNCH_LOCK", "")
+    path = Path(configured).expanduser() if configured else Path(tempfile.gettempdir()) / "AntigravityBridge" / "gui-launch.lock"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = json.dumps({"pid": os.getpid(), "created": time.time()}, separators=(",", ":"))
+
+    for _ in range(2):
+        try:
+            descriptor = os.open(str(path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            try:
+                os.write(descriptor, payload.encode("utf-8"))
+            finally:
+                os.close(descriptor)
+            return path, {"status": "ACQUIRED", "path": str(path)}
+        except FileExistsError:
+            try:
+                lock_age = max(0.0, time.time() - path.stat().st_mtime)
+            except FileNotFoundError:
+                continue
+            try:
+                lock_pid = 0
+                lock_data = json.loads(path.read_text(encoding="utf-8"))
+                lock_pid = int(lock_data.get("pid", 0) or 0)
+            except Exception:
+                # A blank/partially written lock may belong to a process that
+                # has not finished writing its owner record.  Keep it BUSY
+                # until the bounded stale window expires.
+                lock_pid = 0
+            if lock_pid and is_process_alive(lock_pid):
+                return None, {"status": "BUSY", "path": str(path), "owner_pid": lock_pid}
+            if lock_pid and not is_process_alive(lock_pid):
+                try:
+                    path.unlink()
+                except FileNotFoundError:
+                    continue
+                except OSError:
+                    return None, {"status": "BUSY", "path": str(path), "owner_pid": lock_pid}
+                continue
+            if lock_age <= stale_seconds:
+                return None, {"status": "BUSY", "path": str(path), "owner_pid": lock_pid or None}
+            try:
+                path.unlink()
+            except FileNotFoundError:
+                continue
+            except OSError:
+                return None, {"status": "BUSY", "path": str(path), "owner_pid": lock_pid or None}
+    return None, {"status": "BUSY", "path": str(path)}
+
+
+def release_gui_launch_lock(lock: Path | None) -> None:
+    if lock is None:
+        return
+    try:
+        lock.unlink()
+    except FileNotFoundError:
+        pass
+    except OSError:
+        pass
+
+
+def scan_antigravity_process(
+    platform_name: str = "",
+    scanner: Callable[[], bool | None] | None = None,
+) -> bool | None:
+    """Confirm whether a GUI process exists; ``None`` means unknown."""
+    if scanner is not None:
+        try:
+            result = scanner()
+            return None if result is None else bool(result)
+        except Exception:
+            return None
+    if get_platform(platform_name).strip().lower() != "windows":
+        return None
+    try:
+        result = subprocess.run(
+            ["tasklist", "/FI", "IMAGENAME eq Antigravity.exe", "/FO", "CSV", "/NH"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=3,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if result.returncode != 0:
+        return None
+    return "antigravity.exe" in (result.stdout or "").lower()
+
+
+def prepare_session_for_dispatch(
+    *,
+    auto_launch: bool,
+    auto_launch_timeout_seconds: float,
+    auto_launch_poll_interval_seconds: float,
+    gui_path: str,
+    platform_name: str,
+    gui_launcher: Callable[[list[str]], Any] | None = None,
+    process_scanner: Callable[[], bool | None] | None = None,
+) -> tuple[AntigravitySession | None, dict[str, Any]]:
+    """Ensure an RPC session before dispatch, launching only when safe.
+
+    A live process is never launched a second time, even if its RPC port is
+    still warming up.  Authorization failures are returned as INPUT_REQUIRED;
+    no launcher is called for those or for any delivery state.
+    """
+    info: dict[str, Any] = {"enabled": bool(auto_launch), "attempted": False, "status": "SKIPPED"}
+    if not auto_launch:
+        return None, info
+
+    try:
+        session = get_session_info()
+    except Exception as exc:
+        session = None
+        initial_status = classify_predispatch_failure(exc)
+        info.update({"status": initial_status, "reason": str(exc), "discovery": False})
+        if initial_status == HealthState.INPUT_REQUIRED:
+            return None, info
+        if initial_status != HealthState.UNAVAILABLE:
+            # A malformed/unknown discovery error is not proof that the app is
+            # absent; do not open another GUI instance for it.
+            return None, info
+        process_present = scan_antigravity_process(platform_name, process_scanner)
+        info["process_scan"] = process_present
+        if get_platform(platform_name).strip().lower() == "windows" and process_present is not False:
+            # Missing logs plus an existing/unknown Windows process is not
+            # proof that a second GUI instance is safe to open.
+            ready, wait_info = wait_for_session_ready(
+                auto_launch_timeout_seconds,
+                poll_interval_seconds=auto_launch_poll_interval_seconds,
+            )
+            info["wait"] = wait_info
+            info["status"] = wait_info.get("status", HealthState.UNAVAILABLE)
+            return ready, info
+    else:
+        info["discovery"] = True
+        process_id = int(getattr(session, "process_id", 0) or 0)
+        if not process_id:
+            info.update({"status": HealthState.HEALTHY, "probe": False, "reason": "session discovered without a process id"})
+            return session, info
+        if is_process_alive(process_id):
+            # A live app must not be duplicated.  If the port is still warming,
+            # wait for it within the same bounded deadline instead.
+            try:
+                invoke_rpc("GetUserStatus", {}, session=session, deadline=time.monotonic() + max(0.1, auto_launch_timeout_seconds))
+                info.update({"status": HealthState.HEALTHY, "process_alive": True, "probe": True})
+                return session, info
+            except Exception as exc:
+                failure_class = classify_predispatch_failure(exc)
+                info.update({"status": failure_class, "process_alive": True, "probe_error": str(exc)})
+                if failure_class == HealthState.INPUT_REQUIRED:
+                    return None, info
+                if not is_session_transport_unavailable(exc):
+                    info["status"] = HealthState.DEGRADED
+                    info["probe"] = False
+                    return session, info
+                ready, wait_info = wait_for_session_ready(
+                    auto_launch_timeout_seconds,
+                    poll_interval_seconds=auto_launch_poll_interval_seconds,
+                )
+                info.update({"wait": wait_info, "status": wait_info.get("status", HealthState.UNAVAILABLE)})
+                return ready, info if ready else info
+
+    # No discoverable/live process exists.  This is the sole branch that may
+    # invoke the GUI launcher, and it is still rechecked immediately before it.
+    try:
+        recheck = get_session_info()
+        recheck_pid = int(getattr(recheck, "process_id", 0) or 0)
+        if recheck_pid and is_process_alive(recheck_pid):
+            ready, wait_info = wait_for_session_ready(
+                auto_launch_timeout_seconds,
+                poll_interval_seconds=auto_launch_poll_interval_seconds,
+            )
+            info.update({"status": wait_info.get("status", HealthState.UNAVAILABLE), "process_alive": True, "wait": wait_info})
+            return ready, info
+    except Exception:
+        pass
+
+    lock, lock_info = acquire_gui_launch_lock()
+    info["launch_lock"] = lock_info
+    if lock is None:
+        # Another bridge process is already opening the app.  Wait for its
+        # discovery result; never launch a second GUI instance ourselves.
+        ready, wait_info = wait_for_session_ready(
+            auto_launch_timeout_seconds,
+            poll_interval_seconds=auto_launch_poll_interval_seconds,
+        )
+        info["wait"] = wait_info
+        info["status"] = wait_info.get("status", HealthState.UNAVAILABLE)
+        info["coalesced"] = True
+        return ready, info
+
+    try:
+        # A competing process may have started the app between our first
+        # recheck and lock acquisition.  Re-discover while holding the lock;
+        # if anything is now visible, wait for it and never launch again.
+        try:
+            locked_recheck = get_session_info()
+            locked_pid = int(getattr(locked_recheck, "process_id", 0) or 0)
+            if not locked_pid or is_process_alive(locked_pid):
+                ready, wait_info = wait_for_session_ready(
+                    auto_launch_timeout_seconds,
+                    poll_interval_seconds=auto_launch_poll_interval_seconds,
+                )
+                info.update({"status": wait_info.get("status", HealthState.UNAVAILABLE), "process_alive": bool(locked_pid), "wait": wait_info, "coalesced": True})
+                return ready, info
+        except Exception:
+            pass
+
+        # Discovery may still be reading a stale log entry whose PID is dead.
+        # While holding the single-flight lock, independently confirm that no
+        # Windows GUI process appeared before activating AppsFolder.
+        locked_process_present = scan_antigravity_process(platform_name, process_scanner)
+        info["locked_process_scan"] = locked_process_present
+        if get_platform(platform_name).strip().lower() == "windows" and locked_process_present is not False:
+            ready, wait_info = wait_for_session_ready(
+                auto_launch_timeout_seconds,
+                poll_interval_seconds=auto_launch_poll_interval_seconds,
+            )
+            info.update({"status": wait_info.get("status", HealthState.UNAVAILABLE), "wait": wait_info, "coalesced": True})
+            return ready, info
+
+        info["attempted"] = True
+        launch_result = launch_antigravity_gui(
+            platform_name=platform_name,
+            gui_path=gui_path,
+            launcher=gui_launcher,
+        )
+        info["launch"] = launch_result
+        if launch_result.get("status") != "LAUNCHED":
+            info["status"] = HealthState.UNAVAILABLE
+            return None, info
+
+        ready, wait_info = wait_for_session_ready(
+            auto_launch_timeout_seconds,
+            poll_interval_seconds=auto_launch_poll_interval_seconds,
+        )
+        info["wait"] = wait_info
+        info["status"] = wait_info.get("status", HealthState.UNAVAILABLE)
+        return ready, info
+    finally:
+        release_gui_launch_lock(lock)
 
 
 def assess_health(
@@ -513,6 +921,13 @@ class RequestJournal:
                 if row[0] != fingerprint:
                     db.execute("COMMIT")
                     return {"kind": "conflict"}
+                if str(row[1]) == "NOT_SENT":
+                    db.execute(
+                        "UPDATE requests SET state='IN_PROGRESS', cascade_id='', marker='', receipt='', updated=? WHERE request_id=?",
+                        (time.time(), request_id),
+                    )
+                    db.execute("COMMIT")
+                    return {"kind": "retry", "state": "IN_PROGRESS", "cascade_id": "", "marker": "", "receipt": {}}
                 db.execute("COMMIT")
                 return {"kind": "replay", "state": row[1], "cascade_id": row[2], "marker": row[3], "receipt": json.loads(row[4]) if row[4] else {}}
             db.execute("INSERT INTO requests(request_id,fingerprint,state,updated) VALUES(?,?,?,?)", (request_id, fingerprint, "IN_PROGRESS", time.time()))
@@ -763,6 +1178,7 @@ class RequestJournal:
         epoch: int = 0,
         lease_seconds: float = 60.0,
         quota: int = -1,
+        consume_quota: bool = True,
     ) -> dict[str, Any]:
         now = time.time()
         with closing(self._connect_db(isolation_level=None)) as db:
@@ -776,7 +1192,7 @@ class RequestJournal:
                 effective_epoch = epoch if epoch > 0 else 1
                 lease_until = now + lease_seconds
                 remaining_quota = quota
-                if remaining_quota > 0:
+                if consume_quota and remaining_quota > 0:
                     remaining_quota -= 1
                 elif remaining_quota == 0:
                     db.execute(
@@ -858,7 +1274,8 @@ class RequestJournal:
                         "epoch": effective_epoch,
                         "lane_state": "EXHAUSTED",
                     }
-                remaining_quota -= 1
+                if consume_quota:
+                    remaining_quota -= 1
 
             new_lease_until = now + lease_seconds
             db.execute(
@@ -2005,6 +2422,13 @@ def run_visible_rpc_prompt(
     lane_epoch: int = 0,
     lane_lease_seconds: float = 60.0,
     lane_quota: int = -1,
+    auto_launch: bool = False,
+    auto_launch_timeout_seconds: float = 30.0,
+    auto_launch_poll_interval_seconds: float = 0.5,
+    gui_path: str = "",
+    platform_name: str = "",
+    gui_launcher: Callable[[list[str]], Any] | None = None,
+    process_scanner: Callable[[], bool | None] | None = None,
 ) -> dict[str, Any]:
     """Send one idempotent Hub-native prompt; ambiguous delivery never falls back."""
     if not isinstance(prompt, str) or not prompt.strip():
@@ -2180,6 +2604,7 @@ def run_visible_rpc_prompt(
             epoch=lane_epoch,
             lease_seconds=lane_lease_seconds,
             quota=lane_quota,
+            consume_quota=False,
         )
         if not auth["authorized"]:
             receipt = _rpc_receipt(
@@ -2208,10 +2633,74 @@ def run_visible_rpc_prompt(
         lane_epoch = auth.get("epoch", lane_epoch)
         lane_state = auth.get("lane_state", "ACTIVE")
 
+    auto_launch_info: dict[str, Any] = {"enabled": bool(auto_launch), "attempted": False, "status": "SKIPPED"}
+    session: AntigravitySession | None = None
+    if auto_launch:
+        remaining = max(0.0, deadline - time.monotonic())
+        session, auto_launch_info = prepare_session_for_dispatch(
+            auto_launch=True,
+            auto_launch_timeout_seconds=min(max(0.1, auto_launch_timeout_seconds), remaining),
+            auto_launch_poll_interval_seconds=auto_launch_poll_interval_seconds,
+            gui_path=gui_path,
+            platform_name=platform_name,
+            gui_launcher=gui_launcher,
+            process_scanner=process_scanner,
+        )
+        if auto_launch_info.get("status") == HealthState.INPUT_REQUIRED:
+            receipt = _rpc_receipt(
+                cascade_id=cascade_id,
+                marker=marker,
+                status=HealthState.INPUT_REQUIRED,
+                response="",
+                error=auto_launch_info.get("reason") or auto_launch_info.get("probe_error") or "Antigravity requires user authorization",
+                model=selected_model,
+                model_source=selected_source,
+                model_reason=selected_reason,
+                workspace_path=resolved_workspace,
+                started=started,
+                delivery_state="INPUT_REQUIRED",
+                safe_to_fallback=False,
+                request_id=effective_request_id,
+                request_id_source=request_id_source,
+                mission_id=mission_id,
+                lane_id=lane_id,
+                owner_id=effective_owner_id,
+                lane_epoch=lane_epoch,
+                lane_state=lane_state,
+            )
+            receipt["auto_launch"] = auto_launch_info
+            journal.finish(effective_request_id, receipt)
+            return receipt
+        if session is None and auto_launch_info.get("status") == HealthState.UNAVAILABLE:
+            receipt = _rpc_receipt(
+                cascade_id=cascade_id,
+                marker=marker,
+                status="ERROR",
+                response="",
+                error=auto_launch_info.get("reason") or "Antigravity GUI did not become ready before the auto-launch deadline",
+                model=selected_model,
+                model_source=selected_source,
+                model_reason=selected_reason,
+                workspace_path=resolved_workspace,
+                started=started,
+                delivery_state="NOT_SENT",
+                safe_to_fallback=True,
+                request_id=effective_request_id,
+                request_id_source=request_id_source,
+                mission_id=mission_id,
+                lane_id=lane_id,
+                owner_id=effective_owner_id,
+                lane_epoch=lane_epoch,
+                lane_state=lane_state,
+            )
+            receipt["auto_launch"] = auto_launch_info
+            journal.finish(effective_request_id, receipt)
+            return receipt
+
     # Persist caller-visible IDs before StartCascade so a Start timeout is recoverable.
     journal.prepare_delivery(effective_request_id, cascade_id, marker, state="PREPARING")
     try:
-        session = get_session_info()
+        session = session or get_session_info()
         if not conversation_id.strip():
             new_cascade(
                 [resolved_workspace],
@@ -2245,8 +2734,44 @@ def run_visible_rpc_prompt(
             lane_epoch=lane_epoch,
             lane_state=lane_state,
         )
+        receipt["auto_launch"] = auto_launch_info
         journal.finish(effective_request_id, receipt)
         return receipt
+
+    if effective_owner_id:
+        quota_result = journal.consume_lane_quota(
+            mission_id=mission_id,
+            lane_id=lane_id,
+            owner_id=effective_owner_id,
+            epoch=lane_epoch,
+            amount=1,
+        )
+        if quota_result.get("kind") != "ok":
+            receipt = _rpc_receipt(
+                cascade_id=cascade_id,
+                marker=marker,
+                status="QUOTA_EXCEEDED" if quota_result.get("kind") == "exhausted" else "LANE_BUSY",
+                response="",
+                error=quota_result.get("reason") or f"Lane coordination rejected dispatch: {quota_result.get('kind', 'unknown')}",
+                model=selected_model,
+                model_source=selected_source,
+                model_reason=selected_reason,
+                workspace_path=resolved_workspace,
+                started=started,
+                delivery_state="NOT_SENT",
+                safe_to_fallback=False,
+                request_id=effective_request_id,
+                request_id_source=request_id_source,
+                mission_id=mission_id,
+                lane_id=lane_id,
+                owner_id=effective_owner_id,
+                lane_epoch=lane_epoch,
+                lane_state=quota_result.get("lane_state", "BUSY"),
+            )
+            receipt["quota"] = quota_result
+            receipt["auto_launch"] = auto_launch_info
+            journal.finish(effective_request_id, receipt)
+            return receipt
 
     journal.prepare_delivery(effective_request_id, cascade_id, marker, state="DELIVERING")
     marked_prompt = (
@@ -2284,6 +2809,7 @@ def run_visible_rpc_prompt(
             lane_epoch=lane_epoch,
             lane_state=lane_state,
         )
+        receipt["auto_launch"] = auto_launch_info
         journal.finish(effective_request_id, receipt)
         return receipt
 
@@ -2305,6 +2831,7 @@ def run_visible_rpc_prompt(
         lane_epoch=lane_epoch,
         lane_state=lane_state,
     )
+    receipt["auto_launch"] = auto_launch_info
     if receipt.get("delivery_state") == "COMPLETED":
         _GLOBAL_CIRCUIT_BREAKER.record_success()
     journal.finish(effective_request_id, receipt)
@@ -2330,6 +2857,13 @@ def run_prompt(
     lane_epoch: int = 0,
     lane_lease_seconds: float = 60.0,
     lane_quota: int = -1,
+    auto_launch: bool = True,
+    auto_launch_timeout_seconds: float = 30.0,
+    auto_launch_poll_interval_seconds: float = 0.5,
+    gui_path: str = "",
+    platform_name: str = "",
+    gui_launcher: Callable[[list[str]], Any] | None = None,
+    process_scanner: Callable[[], bool | None] | None = None,
 ) -> dict[str, Any]:
     if transport not in {"auto", "rpc", "agy"}:
         raise ValueError("transport must be one of: auto, rpc, agy")
@@ -2353,6 +2887,13 @@ def run_prompt(
             lane_epoch=lane_epoch,
             lane_lease_seconds=lane_lease_seconds,
             lane_quota=lane_quota,
+            auto_launch=auto_launch,
+            auto_launch_timeout_seconds=auto_launch_timeout_seconds,
+            auto_launch_poll_interval_seconds=auto_launch_poll_interval_seconds,
+            gui_path=gui_path,
+            platform_name=platform_name,
+            gui_launcher=gui_launcher,
+            process_scanner=process_scanner,
         )
         if (
             transport == "rpc"
@@ -2389,6 +2930,7 @@ def run_prompt(
                 "attempted_transports": ["rpc", "agy"],
                 "rpc_cascade_id": rpc_receipt.get("cascade_id", ""),
                 "rpc_failure": rpc_receipt.get("error"),
+                "auto_launch": rpc_receipt.get("auto_launch", {}),
                 "fallback_continuation": (
                     "new_conversation" if conversation_id else "native_agy"
                 ),
@@ -2554,6 +3096,16 @@ def build_parser() -> argparse.ArgumentParser:
     prompt.add_argument("--lane-epoch", type=int, default=0)
     prompt.add_argument("--lane-lease-seconds", type=float, default=60.0)
     prompt.add_argument("--lane-quota", type=int, default=-1)
+    prompt.add_argument(
+        "--no-auto-launch",
+        dest="auto_launch",
+        action="store_false",
+        default=True,
+        help="Do not open the Antigravity GUI when the pre-dispatch session is unavailable.",
+    )
+    prompt.add_argument("--auto-launch-timeout-seconds", type=float, default=30.0)
+    prompt.add_argument("--auto-launch-poll-interval-seconds", type=float, default=0.5)
+    prompt.add_argument("--gui-path", default="", help="Optional Antigravity GUI executable/app path.")
     prompt.add_argument("--workspace-path", default=os.getcwd())
 
     lane = subparsers.add_parser("lane", help="Manage lane leases and coordination.")
@@ -2698,6 +3250,10 @@ def run(args: argparse.Namespace) -> Any:
             lane_epoch=args.lane_epoch,
             lane_lease_seconds=args.lane_lease_seconds,
             lane_quota=args.lane_quota,
+            auto_launch=args.auto_launch,
+            auto_launch_timeout_seconds=args.auto_launch_timeout_seconds,
+            auto_launch_poll_interval_seconds=args.auto_launch_poll_interval_seconds,
+            gui_path=args.gui_path,
         )
     session = get_session_info()
     if args.action == "discover":

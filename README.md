@@ -148,6 +148,8 @@ The PowerShell wrapper and `agy` fallback can append a local Markdown transcript
 
 auto is visible-first: it tries Hub-native loopback RPC before agy. The Python bridge treats a prompt as a delivery operation, not a fire-and-forget chat message.
 
+Python `prompt` and MCP `antigravity_prompt` enable safe GUI auto-launch by default. The launcher runs only during pre-dispatch discovery when no usable session exists and the recorded process is not alive; it never kills/restarts a process, launches a second app for a live PID, or runs for `DELIVERY_UNKNOWN`, `INPUT_REQUIRED`, replay, or after Send begins. Startup is single-flight across bridge processes and followed by bounded rediscovery/probing. Use CLI `--no-auto-launch` or MCP `auto_launch: false` to opt out; set `--gui-path` / `gui_path` (or `ANTIGRAVITY_GUI_PATH`) for a non-default installation. Explicit `agy` transport does not launch the GUI.
+
 - The caller creates a UUID request_id before the first call, preserves the receipt, and reuses that key for every retry. A missing ID is generated only for one invocation; separately generated IDs cannot deduplicate later calls.
 - The persistent SQLite journal defaults to %LOCALAPPDATA%\AntigravityBridge\requests.sqlite3. It stores request fingerprints, delivery state, cascade/marker IDs, and receipts—never prompt text or CSRF tokens.
 - The same request_id with different request content returns CONFLICT, not a retry.
