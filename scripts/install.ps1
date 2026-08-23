@@ -233,7 +233,8 @@ function Set-InstalledMcpInterpreter {
     $manifest | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $ManifestPath -Encoding utf8
 }
 
-$sourceRoot = $PSScriptRoot
+# The installer lives under <repo>\scripts; package sources live at the repo root.
+$sourceRoot = Split-Path -Parent $PSScriptRoot
 $codexHome = Get-CodexHome
 $codexExe = Get-CodexExecutable
 Remove-LegacyInstall -CodexHome $codexHome -CodexExe $codexExe
