@@ -1,169 +1,186 @@
 # Antigravity Bridge Codex
 
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)]()
-[![AI Integration](https://img.shields.io/badge/AI-Codex%20%2B%20Gemini-orange.svg)]()
+![Version](https://img.shields.io/badge/version-0.2.1-20B2AA) ![Rust](https://img.shields.io/badge/Rust-1.98.1-DEA584) ![License](https://img.shields.io/badge/license-MIT-blue)
 
-**Antigravity Bridge Codex** is an open-source bridge skill and plugin enabling seamless multi-agent collaboration between **Codex** (GPT-based CLI/IDE assistant) and a locally running **Antigravity** (Gemini-powered desktop application) session.
+**Progress-aware local collaboration between Codex and the user's authenticated Antigravity / Gemini session.**
 
-With this bridge, Codex supervises local Antigravity Gemini work. The default auto transport is visible-first: it tries Hub-native private loopback RPC first and may fall back to agy only after a confirmed pre-dispatch failure. Ambiguous or accepted delivery never falls back; explicit rpc and agy modes remain available.
+[繁體中文](README.zh-TW.md)
 
----
+## What changed in 0.2.x
 
-## Key Features
+The bridge no longer treats “no final answer yet” as proof that Gemini is stalled. Long searches, tool calls, file work, and incremental planner output count as meaningful progress. The bridge also exposes explicit handoff-safety facts so Codex does not launch Luna or another writer into the same workspace while the original Antigravity task may still resume.
 
-- **Automated Session Discovery**: Automatically detects running Antigravity instances and extracts port numbers and CSRF tokens from local system log files across Windows, macOS, and Linux/WSL.
-- **Visible-first prompting**: `auto` starts a Hub-native RPC conversation and falls back to official `agy` only after failure; receipts expose transport, visibility, IDs, and continuation semantics.
-- **Multi-Platform Support**: Works natively on PowerShell 7+ and Python 3.8+ on Windows, macOS, and Linux.
-- **Model Selection**: Uses the official `agy --output-format json models` catalog with explicit/env/catalog/recent/default precedence, lane-aware ranking, and a verified RPC-compatible fallback.
-- **Health and Coordination**: Read-only health checks, a conservative circuit breaker, and opt-in SQLite lane leases provide owner/epoch fencing, quotas, cancellation, and safe recovery decisions.
-- **MCP Server Packaging**: Exposes bridge tools directly as a Model Context Protocol (MCP) server for compatible hosts.
-- **Privacy & Least Privilege**: Keeps the workspace explicit; the primary RPC stays on local loopback, and the fallback reuses the locally authenticated official `agy` client.
+The installer also manages a narrow trust capsule in `$CODEX_HOME/AGENTS.md`: delegation through this bridge is pre-authorized for the user's current task/workspace scope, so Codex should not repeatedly ask for conceptual permission merely because the collaborator is Gemini or Antigravity. Real runtime permission events still remain real permission events.
 
----
+## Architecture truth
 
-## Architecture Overview
-
-```
- ┌──────────────────────────────────────────────────────────┐
- │                     User Workspace                       │
- └────────────────────────────┬─────────────────────────────┘
-                              │
-             ┌────────────────┴────────────────┐
-             ▼                                 ▼
-   ┌───────────────────┐             ┌───────────────────┐
-   │   Codex (GPT)     │             │ Antigravity (App) │
-   │ Supervisor/Review │             │ Gemini Executor   │
-   └─────────┬─────────┘             └─────────┬─────────┘
-             │                                 │
-             │  auto: Hub RPC → agy fallback   │
-             └──────────────► ◄────────────────┘
-                  (authenticated CLI)
-```
-
----
-
-## Quick Start & Installation
-
-### Option 1: PowerShell (Windows / macOS / Linux)
-
-Run the automated installation script:
-
-```powershell
-pwsh -ExecutionPolicy Bypass -File ./scripts/install.ps1
-```
-
-For low-level diagnostics, manually discover a running session and send a private IDE RPC message:
-
-```powershell
-. ./scripts/Discover-AntigravitySession.ps1
-$session = Get-AntigravitySessionInfo
-$cascade = New-AntigravityCascade -WorkspacePaths @($PWD.ProviderPath) -Session $session
-Send-AntigravityMessage -CascadeId $cascade.CascadeId -Text "Hello from Codex!" -Session $session
-```
-
-### Option 2: Python (Cross-Platform CLI)
-
-Run the Python installation script:
-
-```bash
-python3 scripts/install.py
-```
-
-Send a prompt directly via CLI:
-
-```bash
-python3 scripts/antigravity_bridge.py prompt --prompt "Analyze main.py for bugs" --workspace-path "." --model "gemini-3.6-flash-high"
-```
-
----
-
-## Repository Structure (Illustrative)
+This repository is **hybrid**, not a completed pure-Rust rewrite.
 
 ```text
-antigravity-bridge-codex/
-├── .codex-plugin/           # Codex plugin manifest definitions
-├── .mcp.json                # MCP server configuration
-├── SKILL.md                 # Agent prompt instructions and workflow rules
-├── README.md                # English documentation
-├── README.zh-TW.md          # Traditional Chinese documentation
-├── agents/                  # Subagent definition files
-├── mcp/                     # MCP server runner & tools
-├── references/              # Protocol specifications & design notes
-├── scripts/
-│   ├── Discover-AntigravitySession.ps1  # Session auto-discovery script
-│   ├── Invoke-AntigravityBridge.ps1     # High-level bridge invocation
-│   ├── Invoke-AntigravityRpc.ps1        # Low-level RPC client
-│   ├── Run-AntigravityCapabilityMatrix.ps1 # Capability testing
-│   ├── antigravity_bridge.py            # Python bridge CLI & library
-│   ├── install.ps1                      # PowerShell installer
-│   └── install.py                       # Python installer
-├── skills/
-│   └── antigravity-bridge-codex/
-│       └── SKILL.md         # Plugin skill wrapper to the root SKILL.md
-└── tests/
-    ├── Test-Discover-AntigravitySession.ps1
-    ├── Test-Invoke-AntigravityBridge.ps1
-    ├── Test-E2E-Smoke.ps1               # End-to-end integration test
-    └── test_antigravity_bridge_py.py
+Codex / MCP
+    │
+    ├─ progress-aware orchestration ──> scripts/antigravity_bridge_v2.py
+    │                                      │
+    │                                      ├─ Rust 1.98.1 abc-supervisor
+    │                                      └─ handoff / watchdog policy
+    │
+    └─ compatibility transport ───────> scripts/antigravity_bridge.py
+                                           │
+                                           ├─ localhost Antigravity RPC
+                                           ├─ delivery journal / idempotency
+                                           ├─ session discovery
+                                           └─ agy fallback
 ```
 
----
+The Rust layer owns the new progress-state model and watchdog logic. The mature Python transport remains intentionally retained for private loopback RPC, request journaling, session discovery, and proven delivery semantics until those pieces can be ported independently without weakening safety guarantees.
 
-## Operating Modes
+## Core guarantees
 
-1. **Quick Smoke Check**: Verifies that the local Antigravity language server is reachable.
-2. **Capability Matrix**: Tests file reading, writing, web search, and multi-turn memory capabilities.
-3. **Collaborative Chat**: Establishes a multi-turn session where Codex delegates tasks to Gemini and reviews output before final acceptance.
+- **Progress-aware waiting.** Search/tool/trajectory activity refreshes the idle watchdog.
+- **No false failover from silence alone.** A missing final response is not enough to declare Gemini dead.
+- **At-most-once behavior is preserved.** Ambiguous delivery never authorizes a resend through another transport.
+- **Second-writer fencing.** `DELIVERY_UNKNOWN`, `ACCEPTED_PENDING`, `INPUT_REQUIRED`, `PREPARING`, `IN_PROGRESS`, and `DELIVERING` do not permit a second same-workspace writer.
+- **Bounded handoff facts.** Receipts expose `supervisor_state`, `may_handoff_read`, `may_handoff_write`, and `remote_may_resume`.
+- **Scoped trust.** The managed trust capsule covers only this bridge and the current user-granted task/workspace scope.
+- **Runtime permissions stay separate.** Login expiry, OS/sandbox restrictions, Antigravity UI approval, elevation, and scope expansion are never bypassed.
+- **No false “fully local” claim.** The bridge transport is localhost; configured model inference may still be provided by an external model service.
 
----
+## State model
 
-## Running Integration Tests
+| State | Meaning | Same-workspace writer takeover |
+| --- | --- | --- |
+| `ACTIVE` | Meaningful progress observed | No |
+| `QUIET` | No new event yet, still within idle budget | No |
+| `SUSPECT` | Quiet long enough to warrant attention | No |
+| `ACTIVE_PENDING` | Response slice ended, but work is still alive | No |
+| `INPUT_REQUIRED` | Real runtime/login/UI permission event | No |
+| `DELIVERY_UNKNOWN` | Request may already have been accepted | No |
+| `STALLED` | No meaningful progress beyond the adaptive idle threshold | Only when receipt also proves write handoff safe |
+| `DONE` | Completion marker observed | Review/follow-up only |
 
-To run the full unit and integration test suite:
+`may_handoff_read` can be true while write takeover is forbidden, allowing a read-only Luna warm standby or review without creating competing edits.
 
-### PowerShell Pester Tests
+## Installation
 
-```powershell
-pwsh -Command "Invoke-Pester -Path ./tests"
-```
-
-### Python Pytest Suite
+### macOS / Linux
 
 ```bash
-pytest tests/
+python3 scripts/install_v2.py
 ```
 
----
+### Windows / PowerShell 7
+
+```powershell
+pwsh -NoLogo -NoProfile -File .\scripts\install-v2.ps1
+```
+
+The installer:
+
+1. runs the proven compatibility installer;
+2. copies the Rust workspace into installed skill/plugin trees;
+3. builds `abc-supervisor` with **Rust/Cargo 1.98.1** when that exact toolchain is available;
+4. installs the binary under the package `bin/` directory;
+5. updates the marker-scoped `$CODEX_HOME/AGENTS.md` trust capsule without overwriting user-authored text.
+
+If Rust 1.98.1 is unavailable, installation remains usable through the Python compatibility watchdog and reports that the native supervisor is inactive instead of pretending a Rust build succeeded.
+
+## Primary usage
+
+Use the v2 front door for normal work:
+
+```bash
+python3 scripts/antigravity_bridge_v2.py prompt \
+  --prompt "Inspect the current workspace and summarize the relevant files." \
+  --workspace-path .
+```
+
+Smoke check:
+
+```bash
+python3 scripts/antigravity_bridge_v2.py smoke --workspace-path .
+```
+
+The installed MCP route is declared in `.mcp.json` and loads:
+
+```text
+mcp/antigravity_bridge_server_v2.py
+```
+
+The older Python/PowerShell scripts are compatibility and diagnostic surfaces, not the preferred orchestration entry point.
+
+## Delegation model
+
+Default role split:
+
+- **Gemini / Antigravity:** creative scout, primary heavy writer/executor, broad first pass.
+- **Codex:** planner, scope controller, reviewer, acceptance gate.
+- **Luna or another worker:** bounded finisher/reviewer; same-workspace write takeover only when the bridge explicitly marks it safe.
+
+A strong worker answer is still not completion evidence. Codex must inspect the resulting files, receipts, or test output before claiming the task is done.
+
+## Permission boundary
+
+The trust capsule means:
+
+> “Codex may delegate the current user-authorized task/workspace through this locally authenticated Antigravity bridge without asking again merely because the collaborator is Gemini.”
+
+It does **not** mean:
+
+- all Gemini services are globally trusted;
+- the bridge can read unrelated files;
+- model inference is guaranteed to remain on-device;
+- OS, sandbox, login, elevation, or Antigravity UI permissions can be skipped.
+
+## Verification
+
+Python regression checks for the 0.2.x orchestration layer:
+
+```bash
+python3 -m unittest tests/test_progress_watchdog.py tests/test_install_v2.py
+```
+
+Rust checks, when Rust 1.98.1 is installed:
+
+```bash
+cargo +1.98.1 fmt --manifest-path rust/Cargo.toml --all -- --check
+cargo +1.98.1 check --manifest-path rust/Cargo.toml --workspace --all-targets --locked
+cargo +1.98.1 test --manifest-path rust/Cargo.toml --workspace --all-targets --locked
+```
+
+The project does not rely on GitHub Actions as its acceptance gate; local verification and explicit remote commit verification are the source of truth for maintenance work.
+
+## Repository map
+
+```text
+.
+├── SKILL.md                         # Canonical Codex operating contract
+├── agents/openai.yaml              # Invocation/orchestration guidance
+├── mcp/
+│   ├── antigravity_bridge_server_v2.py  # Primary MCP adapter
+│   └── antigravity_bridge_server.py     # Compatibility MCP framing
+├── scripts/
+│   ├── antigravity_bridge_v2.py     # Primary progress-aware CLI
+│   ├── antigravity_bridge.py        # Mature compatibility transport/journal
+│   ├── install_v2.py                # Primary installer
+│   └── install.py                   # Compatibility installer
+├── rust/
+│   ├── abc-core/
+│   ├── abc-supervisor/
+│   └── rust-toolchain.toml          # Rust 1.98.1
+└── references/
+    ├── progress-aware-supervisor.md
+    ├── delegation-contract.md
+    ├── collaboration-playbook.md
+    ├── known-gotchas.md
+    ├── streaming-event-protocol.md
+    ├── verification-gate.md
+    └── skill-packaging.md
+```
+
+## Maintainer rule
+
+Do not weaken `safe_to_fallback = false` or same-workspace writer fencing merely to make failover faster. Transport fallback (`RPC → agy`) and agent handoff (`Gemini → Luna`) are separate decisions with separate safety requirements.
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
-## Conversation visibility and transcripts
-
-The default Hub-native RPC path is indexed by Antigravity and is expected to appear at least under `Outside of Project`; Project classification remains controlled by the desktop app. On Antigravity 2.4.3, the `agy` fallback may be completely invisible because the desktop loader looks for a legacy `.pb` trajectory while the CLI writes SQLite `.db` files. Never inject or convert trajectory files to force visibility.
-
-The PowerShell wrapper and `agy` fallback can append a local Markdown transcript. Set `ANTIGRAVITY_BRIDGE_TRANSCRIPT_DIR` to choose a dedicated Codex-readable folder, or use `-TranscriptDirectory` in PowerShell. Use `-NoTranscript` / `--no-transcript` when local persistence is undesirable.
-## Reliable delivery and retry contract
-
-auto is visible-first: it tries Hub-native loopback RPC before agy. The Python bridge treats a prompt as a delivery operation, not a fire-and-forget chat message.
-
-Python `prompt` and MCP `antigravity_prompt` enable safe GUI auto-launch by default. The launcher runs only during pre-dispatch discovery when no usable session exists and the recorded process is not alive; it never kills/restarts a process, launches a second app for a live PID, or runs for `DELIVERY_UNKNOWN`, `INPUT_REQUIRED`, replay, or after Send begins. Startup is single-flight across bridge processes and followed by bounded rediscovery/probing. Use CLI `--no-auto-launch` or MCP `auto_launch: false` to opt out; set `--gui-path` / `gui_path` (or `ANTIGRAVITY_GUI_PATH`) for a non-default installation. Explicit `agy` transport does not launch the GUI.
-
-- The caller creates a UUID request_id before the first call, preserves the receipt, and reuses that key for every retry. A missing ID is generated only for one invocation; separately generated IDs cannot deduplicate later calls.
-- The persistent SQLite journal defaults to %LOCALAPPDATA%\AntigravityBridge\requests.sqlite3. It stores request fingerprints, delivery state, cascade/marker IDs, and receipts—never prompt text or CSRF tokens.
-- The same request_id with different request content returns CONFLICT, not a retry.
-- Once SendUserCascadeMessage begins, DELIVERY_UNKNOWN, IN_PROGRESS, and other pending/non-terminal outcomes must reconcile the same key, cascade, and marker. They must not send a new prompt or fall back to agy.
-- One global deadline spans RPC, reconciliation, and any eligible agy fallback; after it expires, fallback is skipped.
-
-mission_id and lane_id are deliberate fan-out metadata. Add an owner to opt into durable lane coordination; an active lane requires the exact owner and epoch, while denials never bypass coordination through agy fallback.
-
-    python3 scripts/antigravity_bridge.py lane claim --mission-id review-2026-08-21 --lane-id security --owner-id reviewer-1 --quota 3
-    python3 scripts/antigravity_bridge.py prompt --prompt "Review src/main.py" --workspace-path . --request-id "550e8400-e29b-41d4-a716-446655440000" --mission-id review-2026-08-21 --lane-id security --owner-id reviewer-1 --lane-epoch 1
-    python3 scripts/antigravity_bridge.py health --no-probe
-
-Set `ANTIGRAVITY_ALLOWED_WORKSPACES` (OS path-separator delimited) to enforce an allow-list. Permission waits are returned as non-terminal `INPUT_REQUIRED`; approve them in Antigravity and reconcile the same request ID. `DELIVERY_UNKNOWN`, `INPUT_REQUIRED`, and unowned processes never authorize restart.
-
-PowerShell is a compatibility/diagnostic layer and has no independent persistent request journal; use Python CLI or MCP for idempotent delivery.
-
-This follows [AWS idempotent API](https://docs.aws.amazon.com/ec2/latest/devguide/ec2-api-idempotency.html) client-token guidance. Long-running MCP operations may report [progress](https://modelcontextprotocol.io/specification/latest/basic/patterns/progress) or receive [cancellation](https://modelcontextprotocol.io/specification/latest/basic/patterns/cancellation); timeout/cancellation is not proof that delivery never occurred.
+MIT

@@ -1,160 +1,188 @@
-# Antigravity Bridge Codex 雙 AI 協作橋接套件
+# Antigravity Bridge Codex
 
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)]()
-[![AI Integration](https://img.shields.io/badge/AI-Codex%20%2B%20Gemini-orange.svg)]()
+![Version](https://img.shields.io/badge/version-0.2.1-20B2AA) ![Rust](https://img.shields.io/badge/Rust-1.98.1-DEA584) ![License](https://img.shields.io/badge/license-MIT-blue)
 
-**Antigravity Bridge Codex** 是一套開源的跨 AI 協作橋接 Skill 與 Plugin。它能讓 **Codex**（基於 GPT 的 CLI / IDE 助理）與本機正在執行的 **Antigravity**（基於 Gemini 的桌面應用程式）進行無縫雙向通訊與協同工作。
+**讓 Codex 與使用者本機已登入的 Antigravity / Gemini 進行「看得懂進度」的安全協作。**
 
-在協作架構中，Codex 擔任監督者與稽核者。預設 auto 採可見性優先：先走 Hub-native 私有環回 RPC，只有確認尚未派發的失敗才可 fallback 到 agy；已接受或交付不明時絕不 fallback。仍可明確指定 rpc 或 agy。
+[English](README.md)
 
----
+## 0.2.x 最重要的改變
 
-## 💡 核心特色
+以前最容易出事的是：Gemini 還在查資料、跑工具或整理大型內容，Codex 卻只看到「還沒回最終答案」，於是誤判妹妹失聯，甚至直接讓 Luna 接手同一個 workspace。
 
-- **自動化 Session 偵測**：自動掃描系統日誌（Log），於 Windows、macOS 與 Linux/WSL 上自動提取 Antigravity 服務端口（Port）與 CSRF Token。
-- **可見性優先通道**：`auto` 先建立 Hub-native RPC 對話，失敗才 fallback 到官方 `agy`；receipt 會揭露 transport、visibility、ID 與續聊語意。
-- **全平台與雙語言腳本支援**：原生支援 PowerShell 7+ 與 Python 3.8+，兼具效能與跨平台彈性。
-- **模型選擇**：讀取官方 `agy --output-format json models` 目錄，依顯式參數／環境變數／目錄／近期對話／安全預設排序，並保留已驗證的 RPC 相容 fallback。
-- **健康與協調**：提供唯讀 health、保守熔斷器，以及 opt-in SQLite lane lease；支援 owner/epoch fencing、配額、取消與安全恢復決策。
-- **MCP Server 整合**：提供 Model Context Protocol (MCP) 伺服器設定（`.mcp.json`），方便支援 MCP 的開發環境直接呼叫。
-- **權限範圍與隱私**：明確限制工作區；主要 RPC 只走本機環回，fallback 則沿用本機已登入的官方 `agy`。
+現在橋樑改成 **progress-aware watchdog**：只要 trajectory、搜尋、工具事件、檔案工作或 planner response 還有實質進展，就會刷新 idle watchdog。沒有最終文字回覆，**不等於** stalled。
 
----
+Installer 也會在 `$CODEX_HOME/AGENTS.md` 管理一段窄範圍 trust capsule：只要是透過本橋樑、且仍在使用者已授權的任務 / workspace 範圍內，Codex 不必再因為協作者叫 Gemini / Antigravity 就重問一次「是否授權委派」。真正的登入、OS、sandbox、UI、提權或擴大存取範圍仍然是獨立權限事件。
 
-## 🏗️ 架構示意圖
+## 架構真相
+
+這個 repository 現在是 **Hybrid 架構**，不是已經 100% 純 Rust。
 
 ```text
- ┌──────────────────────────────────────────────────────────┐
- │                      本機開發者工作區                     │
- └────────────────────────────┬─────────────────────────────┘
-                              │
-             ┌────────────────┴────────────────┐
-             ▼                                 ▼
-   ┌───────────────────┐             ┌───────────────────┐
-   │   Codex (GPT)     │             │ Antigravity (App) │
-   │ 任務監督與品質審查 │             │ Gemini 執行與撰寫 │
-   └─────────┬─────────┘             └─────────┬─────────┘
-             │                                 │
-             │ auto：Hub RPC → agy fallback    │
-             └──────────────► ◄────────────────┘
+Codex / MCP
+    │
+    ├─ progress-aware orchestration ──> scripts/antigravity_bridge_v2.py
+    │                                      │
+    │                                      ├─ Rust 1.98.1 abc-supervisor
+    │                                      └─ handoff / watchdog policy
+    │
+    └─ compatibility transport ───────> scripts/antigravity_bridge.py
+                                           │
+                                           ├─ localhost Antigravity RPC
+                                           ├─ delivery journal / idempotency
+                                           ├─ session discovery
+                                           └─ agy fallback
 ```
 
----
+Rust 1.98.1 負責新的 progress state model 與 supervisor；成熟的 Python transport 則刻意保留，繼續負責 localhost private RPC、request journal、session discovery 與既有 delivery semantics。這些核心不會為了「看起來全 Rust」而一次硬翻，避免把已驗證的安全性一起翻掉。
 
-## 🚀 快速開始與安裝
+## 核心保證
 
-### 選項 1：PowerShell 安裝與使用 (Windows / macOS / Linux)
+- **進度感知等待：** 搜尋、工具、trajectory 或回覆增量都會延長 idle budget。
+- **不再用沉默判死刑：** 沒有 final reply 不是 stalled 的充分條件。
+- **保留 at-most-once：** 投遞狀態不明時，不允許換 transport 重送同一工作。
+- **第二 writer fencing：** `DELIVERY_UNKNOWN`、`ACCEPTED_PENDING`、`INPUT_REQUIRED`、`PREPARING`、`IN_PROGRESS`、`DELIVERING` 都不准 Luna 或其他 writer 在同一 workspace 接管。
+- **Handoff 明確化：** receipt 會暴露 `supervisor_state`、`may_handoff_read`、`may_handoff_write`、`remote_may_resume`。
+- **授權範圍收斂：** trust capsule 只覆蓋本 bridge 與當前使用者已授權的 task/workspace。
+- **真正權限不會被吃掉：** 登入失效、OS / sandbox、Antigravity UI、提權或擴大 scope 仍要照規則處理。
+- **不假裝全本機：** bridge transport 是 localhost；實際模型 inference 仍可能由外部模型服務提供。
 
-執行自動化安裝腳本：
+## 狀態模型
 
-```powershell
-pwsh -ExecutionPolicy Bypass -File ./scripts/install.ps1
-```
+| 狀態 | 意義 | 同 workspace writer 接班 |
+| --- | --- | --- |
+| `ACTIVE` | 持續觀察到有效進度 | 不可 |
+| `QUIET` | 暫時沒新事件，但還在 idle budget 內 | 不可 |
+| `SUSPECT` | 安靜較久，需要提高警覺 | 不可 |
+| `ACTIVE_PENDING` | 本回合 response slice 結束，但工作仍活著 | 不可 |
+| `INPUT_REQUIRED` | 真正 runtime / login / UI 權限事件 | 不可 |
+| `DELIVERY_UNKNOWN` | 請求可能已被接受 | 不可 |
+| `STALLED` | 超過 adaptive idle threshold 都沒有有效進度 | 只有 receipt 同時證明 write-safe 才可 |
+| `DONE` | 完成 marker 已出現 | 只做 review / follow-up |
 
-需要底層診斷時，可手動偵測本機 Session 並透過私有 IDE RPC 發送測試訊息：
+`may_handoff_read` 可以在 `may_handoff_write = false` 時仍為 true，因此 Luna 可以先做唯讀 warm standby / review，但不會跟 Gemini 同時改同一份 workspace。
 
-```powershell
-. ./scripts/Discover-AntigravitySession.ps1
-$session = Get-AntigravitySessionInfo
-$cascade = New-AntigravityCascade -WorkspacePaths @($PWD.ProviderPath) -Session $session
-Send-AntigravityMessage -CascadeId $cascade.CascadeId -Text "Hello from Codex!" -Session $session
-```
+## 安裝
 
-### 選項 2：Python 跨平台 CLI 工具
-
-執行 Python 安裝腳本：
+### macOS / Linux
 
 ```bash
-python3 scripts/install.py
+python3 scripts/install_v2.py
 ```
 
-透過 CLI 直接傳送任務：
+### Windows / PowerShell 7
+
+```powershell
+pwsh -NoLogo -NoProfile -File .\scripts\install-v2.ps1
+```
+
+Installer 會：
+
+1. 執行已驗證的 compatibility installer；
+2. 把 Rust workspace 同步進已安裝 skill / plugin；
+3. 若找到**精確的 Rust/Cargo 1.98.1**，先 build `abc-supervisor`；
+4. 把 binary 安裝到 package 的 `bin/`；
+5. 以 marker 管理 `$CODEX_HOME/AGENTS.md` 的 trust capsule，不覆寫使用者原本內容。
+
+如果機器沒有 Rust 1.98.1，安裝仍可使用 Python compatibility watchdog，並明確顯示 native supervisor 沒有啟用，不會假裝 build 成功。
+
+## 主要使用方式
+
+一般工作請走新版入口：
 
 ```bash
-python3 scripts/antigravity_bridge.py prompt --prompt "檢查 main.py 是否有程式漏洞" --workspace-path "." --model "gemini-3.6-flash-high"
+python3 scripts/antigravity_bridge_v2.py prompt \
+  --prompt "請檢查目前 workspace 並整理相關檔案。" \
+  --workspace-path .
 ```
 
----
+Smoke check：
 
-## 📂 專案目錄結構 (示意)
+```bash
+python3 scripts/antigravity_bridge_v2.py smoke --workspace-path .
+```
+
+`.mcp.json` 的正式 MCP 入口目前是：
 
 ```text
-antigravity-bridge-codex/
-├── .codex-plugin/           # Codex 外掛定義檔
-├── .mcp.json                # MCP Server 設定檔
-├── SKILL.md                 # Agent 提示詞規範與工作流指引
-├── README.md                # 英文說明文件
-├── README.zh-TW.md          # 繁體中文說明文件
-├── agents/                  # 子 Agent 角色定義檔
-├── mcp/                     # MCP 服務啟動器與工具
-├── references/              # 通訊協定規範與設計文件
+mcp/antigravity_bridge_server_v2.py
+```
+
+其他舊 Python / PowerShell scripts 現在屬於 **compatibility / diagnostic surface**，不是推薦的 orchestrator front door。
+
+## 角色分工
+
+預設：
+
+- **Gemini / Antigravity：** Creative Scout、主要重工作 writer / executor、負責大份第一版。
+- **Codex：** planner、scope controller、reviewer、最終 acceptance gate。
+- **Luna / 其他 worker：** bounded finisher / reviewer；只有 bridge 明確標記 write-safe 才能接手同一 workspace 寫入。
+
+Gemini 說「完成」也不是完成證據；Codex 仍必須檢查檔案、receipt、test output 或其他可驗證 artifact 才能向使用者宣布完成。
+
+## 權限邊界
+
+Trust capsule 的意思是：
+
+> 「對這個使用者已授權的 task/workspace，Codex 可以透過本機已登入的 Antigravity bridge 進行委派，不必只因協作者叫 Gemini 就再問一次概念性授權。」
+
+它**不代表**：
+
+- 所有 Gemini 服務永久全域可信；
+- bridge 可以看無關資料夾；
+- 模型推論保證不離開裝置；
+- OS、sandbox、登入、提權或 Antigravity UI 權限可以跳過。
+
+## 驗證
+
+0.2.x orchestration Python regression：
+
+```bash
+python3 -m unittest tests/test_progress_watchdog.py tests/test_install_v2.py
+```
+
+有 Rust 1.98.1 時再跑：
+
+```bash
+cargo +1.98.1 fmt --manifest-path rust/Cargo.toml --all -- --check
+cargo +1.98.1 check --manifest-path rust/Cargo.toml --workspace --all-targets --locked
+cargo +1.98.1 test --manifest-path rust/Cargo.toml --workspace --all-targets --locked
+```
+
+本專案不把 GitHub Actions 當 acceptance gate；維護時以本機驗證 + 遠端 commit SHA 實際確認為準。
+
+## Repository 地圖
+
+```text
+.
+├── SKILL.md                         # Codex canonical operating contract
+├── agents/openai.yaml              # Invocation / orchestration policy
+├── mcp/
+│   ├── antigravity_bridge_server_v2.py  # 主要 MCP adapter
+│   └── antigravity_bridge_server.py     # compatibility MCP framing
 ├── scripts/
-│   ├── Discover-AntigravitySession.ps1  # Session 自動偵測腳本
-│   ├── Invoke-AntigravityBridge.ps1     # 高階橋接呼叫器
-│   ├── Invoke-AntigravityRpc.ps1        # 底層 RPC 客戶端
-│   ├── Run-AntigravityCapabilityMatrix.ps1 # 能力測試陣列
-│   ├── antigravity_bridge.py            # Python 橋接主程式與庫
-│   ├── install.ps1                      # PowerShell 安裝腳本
-│   └── install.py                       # Python 安裝腳本
-├── skills/
-│   └── antigravity-bridge-codex/
-│       └── SKILL.md         # 外掛 Skill 封裝，指向根目錄 SKILL.md
-└── tests/
-    ├── Test-Discover-AntigravitySession.ps1
-    ├── Test-Invoke-AntigravityBridge.ps1
-    ├── Test-E2E-Smoke.ps1               # 端對端整合測試
-    └── test_antigravity_bridge_py.py
+│   ├── antigravity_bridge_v2.py     # 主要 progress-aware CLI
+│   ├── antigravity_bridge.py        # 成熟 compatibility transport/journal
+│   ├── install_v2.py                # 主要 installer
+│   └── install.py                   # compatibility installer
+├── rust/
+│   ├── abc-core/
+│   ├── abc-supervisor/
+│   └── rust-toolchain.toml          # Rust 1.98.1
+└── references/
+    ├── progress-aware-supervisor.md
+    ├── delegation-contract.md
+    ├── collaboration-playbook.md
+    ├── known-gotchas.md
+    ├── streaming-event-protocol.md
+    ├── verification-gate.md
+    └── skill-packaging.md
 ```
 
----
+## 維護者硬規則
 
-## 🧪 執行自動化測試
+不要為了讓 failover 看起來更快，就把 `safe_to_fallback = false` 或 same-workspace writer fencing 放寬。**Transport fallback（RPC → agy）與 Agent handoff（Gemini → Luna）是兩個不同決策，安全條件也不同。**
 
-要執行完整的單元測試與端對端整合測試：
+## License
 
-### PowerShell Pester 測試
-
-```powershell
-pwsh -Command "Invoke-Pester -Path ./tests"
-```
-
-### Python Pytest 測試套件
-
-```bash
-pytest tests/
-```
-
----
-
-## 📄 授權條款
-
-本專案採用 [MIT License](LICENSE) 條款開源發布。
-## 對話顯示與本機紀錄
-
-預設的 Hub-native RPC 路徑會被 Antigravity 建立索引，預期至少出現在 `Outside of Project`；是否歸入特定 Project 仍由桌面程式決定。Antigravity 2.4.3 的 `agy` fallback 可能完全不可見，因為桌面 loader 尋找舊 `.pb` trajectory，而 CLI 寫入 SQLite `.db`。禁止為了強制顯示而注入或轉換 trajectory 檔案。
-
-PowerShell wrapper 與 `agy` fallback 可追加本機 Markdown 紀錄。可用 `ANTIGRAVITY_BRIDGE_TRANSCRIPT_DIR` 指向專供 Codex 查閱的資料夾，PowerShell 亦可傳 `-TranscriptDirectory`；不想落地保存時可用 `-NoTranscript` / `--no-transcript`。
-## 可靠傳遞與重試合約
-
-auto 採可見性優先：先嘗試 Hub-native 環回 RPC，才可能使用 agy。Python 橋接把 prompt 視為傳遞操作，而不是可以任意重送的聊天訊息。
-
-Python `prompt` 與 MCP `antigravity_prompt` 預設啟用安全 GUI auto-launch。只有在派發前確認沒有可用 session 且程序不存在／已死亡時才會開啟桌面程式；不會 kill/restart、不會對仍存活的 PID 開第二份，也不會在 `DELIVERY_UNKNOWN`、`INPUT_REQUIRED`、replay 或 Send 開始後觸發。啟動採跨 bridge process 單飛鎖，接著做有上限的重新 discovery/probe。CLI 可用 `--no-auto-launch`，MCP 可設 `auto_launch: false`；非預設安裝可用 `--gui-path`／`gui_path` 或 `ANTIGRAVITY_GUI_PATH`。明確指定 `agy` transport 不會啟動 GUI。
-
-- 呼叫端應在第一次呼叫前產生 UUID request_id、保留回傳 receipt，並在每次重試沿用相同 key。若未提供，橋接只會替該次呼叫產生；不同呼叫各自產生的 ID 無法跨呼叫去重。
-- 持久 SQLite request journal 預設位於 %LOCALAPPDATA%\AntigravityBridge\requests.sqlite3，僅記錄 fingerprint、傳遞狀態、cascade/marker ID 與 receipt；不保存 prompt 原文或 CSRF token。
-- 同一 request_id 搭配不同請求內容會回傳 CONFLICT，不可當成重試。
-- SendUserCascadeMessage 一旦開始，DELIVERY_UNKNOWN、IN_PROGRESS 與其他 pending／非終態結果必須用同一 key 對同一 cascade/marker 做 reconcile；不得 fallback 到 agy，也不得重新送 prompt。
-- 單一 global deadline 涵蓋 RPC、reconcile 與符合條件的 agy fallback；期限耗盡即跳過 fallback。
-
-mission_id 與 lane_id 是刻意 fan-out 的中繼資料。加上 owner 才啟用持久 lane 協調；既有 active lane 必須提供完全相符的 owner 與 epoch，所有協調拒絕都不可透過 agy fallback 繞過。
-
-    python3 scripts/antigravity_bridge.py lane claim --mission-id review-2026-08-21 --lane-id security --owner-id reviewer-1 --quota 3
-    python3 scripts/antigravity_bridge.py prompt --prompt "檢查 src/main.py" --workspace-path . --request-id "550e8400-e29b-41d4-a716-446655440000" --mission-id review-2026-08-21 --lane-id security --owner-id reviewer-1 --lane-epoch 1
-    python3 scripts/antigravity_bridge.py health --no-probe
-
-可用 `ANTIGRAVITY_ALLOWED_WORKSPACES`（依作業系統 path separator 分隔）強制 workspace allow-list。權限等待會回非終態 `INPUT_REQUIRED`；請在 Antigravity 核准後沿用同一 request ID reconcile。`DELIVERY_UNKNOWN`、`INPUT_REQUIRED` 與非 Bridge 所有的程序一律不得觸發重啟。
-
-PowerShell 是相容／診斷層，沒有獨立持久 journal；需要冪等傳遞時請使用 Python CLI 或 MCP。
-
-設計採用 [AWS idempotent API](https://docs.aws.amazon.com/ec2/latest/devguide/ec2-api-idempotency.html) client-token 原則。長時間 MCP 作業可回報 [progress](https://modelcontextprotocol.io/specification/latest/basic/patterns/progress) 或接收 [cancellation](https://modelcontextprotocol.io/specification/latest/basic/patterns/cancellation)；取消或逾時不代表傳遞必定未發生。
+MIT

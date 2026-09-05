@@ -1,154 +1,161 @@
 # Known Gotchas
 
-## Official CLI Prompt Channel
+This file records current operational pitfalls for the 0.2.x hybrid bridge. Historical implementation notes belong in Git history, not here.
 
-Default auto is visible-first: it starts with Hub-native private loopback RPC, then falls back to agy only after failure or hard timeout. Gemini 3.6 Flash High maps to verified MODEL_PLACEHOLDER_M71; explicit MODEL_PLACEHOLDER_M values remain supported. RPC receipts state transport, visibility, and IDs, with at least Hub/Outside visibility expected. Explicit rpc and agy modes remain available. In Antigravity 2.4.3, agy fallback can be completely invisible because it writes .db while the Hub loader expects .pb. Never inject or convert protobuf files; use the Markdown transcript for audit.
+## 1. Silence is not a stall
 
-Private IDE loopback RPC and cascades are the normal visible-first path under auto, while remaining restricted to local loopback. A stuck Blender MCP connection can block the agy fallback; remove or disable that failing integration before retrying.
-## Dynamic Session Data
+The most important rule in 0.2.x:
 
-Antigravity standalone app can restart and rotate all of these:
+> A missing final reply is not enough evidence that Antigravity stopped working.
 
-- CSRF token
-- HTTPS port
-- HTTP port
-- language server pid
+Long searches, tool calls, file operations, and planner-response growth count as meaningful progress. Use the v2 supervisor state and receipt facts instead of a wall-clock-only timeout.
 
-Always rediscover them from logs instead of reusing an old value.
+- `ACTIVE`, `QUIET`, `SUSPECT`, `ACTIVE_PENDING` → do not replace the writer.
+- `INPUT_REQUIRED` → handle the real runtime/login/UI permission event, then continue the same cascade.
+- `DELIVERY_UNKNOWN` / `ACCEPTED_PENDING` → the request may already be accepted; never resend or create a same-workspace second writer.
+- `STALLED` alone still does not prove write takeover is safe; require `may_handoff_write = true`.
 
-## Required Model Field
+## 2. Transport fallback and agent handoff are different
 
-Do not rely on a hardcoded placeholder. Prefer `-Model` or `$env:ANTIGRAVITY_MODEL`, and otherwise let the bridge fall back to the newest real model id found in local Antigravity conversation storage.
+`safe_to_fallback` answers whether the same Gemini request may use another **transport**.
 
-The local executor currently accepts one of these planner paths:
+`may_handoff_write` answers whether another **agent** may write the same workspace.
 
-```json
-{
-  "requestedModel": "MODEL_PLACEHOLDER_M36",
-  "cascadeConfig": {
-    "plannerConfig": {
-      "planModel": "MODEL_PLACEHOLDER_M36"
-    }
-  }
-}
-```
+Do not use one as a substitute for the other. A fast fallback is not worth duplicate execution or competing edits.
 
-When no internal enum mapping is discoverable, the bridge falls back to the older explicit model-id path:
+## 3. Session data is dynamic
 
-```json
-{
-  "cascadeConfig": {
-    "plannerConfig": {
-      "requestedModel": {
-        "model": "your-real-model-id"
-      }
-    }
-  }
-}
-```
+Antigravity restarts can rotate:
 
-If both planner paths are missing or the payload uses the wrong field shape, expect:
+- CSRF token;
+- HTTPS port;
+- HTTP port;
+- language-server PID;
+- log snapshot paths.
+
+Rediscover current session information from logs. Do not persist and reuse old ports/tokens as configuration.
+
+## 4. The compatibility Python layer is still required
+
+The repository is not yet pure Rust.
+
+Primary orchestration:
 
 ```text
-failed to construct executor: neither PlanModel nor RequestedModel specified. You must specify a valid model.
+scripts/antigravity_bridge_v2.py
 ```
 
-If Antigravity shows `Agent execution terminated due to error` with that exact failure, the request reached the local executor but no real planner model survived the payload path.
+Still-required compatibility responsibilities:
 
-Current macOS/Windows bridge behavior:
+```text
+scripts/antigravity_bridge.py
+  ├─ localhost RPC
+  ├─ request journal / idempotency
+  ├─ session discovery
+  └─ agy fallback
+```
 
-- top-level `StartCascade.requestedModel` prefers the paired internal enum such as `MODEL_PLACEHOLDER_M36` when a recent successful local conversation exposes it
-- `SendUserCascadeMessage` supplies both an empty `declarativeMixinConfig` (which preserves built-in
-  planner components) and `requestedModel.model`. Sending only `plannerConfig.planModel` fails on
-  current executors with `planner config is not declarative: not set`; omitting planner config on a
-  fresh cascade can instead fail with `neither PlanModel nor RequestedModel specified`.
-- Direct diagnostic calls can still omit the planner config explicitly for negative testing.
+Similarly, the primary MCP adapter still reuses the mature compatibility MCP framing server. Do not delete these files merely because their filenames look older.
 
-## New Trajectory Shape
+## 5. Rust supervisor availability is explicit
 
-Do not trust the old top-level `plannerResponse` or `failure` fields, or a
-raw array-tail lookup. Filter by event type first, then select the newest
-matching step:
+`rust/rust-toolchain.toml` pins Rust 1.98.1.
 
-- `CORTEX_STEP_TYPE_PLANNER_RESPONSE` for the current reply
-- `CORTEX_STEP_TYPE_ERROR_MESSAGE` for the current error
+The installer only enables the native `abc-supervisor` when the exact Cargo/Rust 1.98.1 toolchain is available and the release build succeeds. Otherwise the Python compatibility watchdog remains active and the installer reports native supervision as inactive.
 
-## Web Access Verification
+Never claim a Rust build passed if the toolchain was not actually available.
 
-A file containing a URL is not enough to prove real browsing.
+## 6. Trajectory shape matters
 
-For strong evidence, confirm the trajectory includes:
-- `CORTEX_STEP_TYPE_SEARCH_WEB`
+Use `trajectory.steps[]`; do not rely on old top-level response/error fields or assume the final array element is the planner answer.
 
-## UI Visibility
+Important event types include:
 
-Visible-first RPC cascades are locally indexed and expected to be visible at least through Hub/Outside surfaces. Desktop rendering remains version-dependent; consume the receipt visibility field rather than assume a specific chat window.
+- `CORTEX_STEP_TYPE_PLANNER_RESPONSE`
+- `CORTEX_STEP_TYPE_ERROR_MESSAGE`
+- search/tool/browser/command/file-related events used by the progress signature
 
-## Workspace Binding
+Raw trajectories can be large. Keep them out of normal receipts unless debugging.
 
-If the task should operate inside a specific folder, start the cascade with `workspaceUris`. Otherwise Gemini may still reply, but it will have weaker local context.
+## 7. Model wiring can be version-sensitive
 
-## Privacy and Workspace Delegation
+Antigravity executors may require both a public model id and an internal planner enum (`MODEL_PLACEHOLDER_M*`). Prefer the compatibility transport's model-selection helpers rather than hand-rolling payloads.
 
-The "Gemini" collaborator means the underlying model used by the locally installed Antigravity co-pilot, reached through the local loopback bridge. It is not an unrelated or unauthorized third-party tool in this workflow.
+A model error is not evidence that delivery was never attempted. Respect the receipt's delivery state before deciding whether fallback or retry is safe.
 
-Treat Antigravity/Gemini as a scoped local collaborator. If the user explicitly authorizes a repository, file path, or task scope, Gemini through Antigravity may inspect local files within that boundary.
+## 8. `agy` visibility is not equivalent to Hub-native RPC
 
-Default to least privilege:
+The normal `auto` path prefers the Hub-native localhost RPC transport. `agy` is a fallback only when the RPC attempt is proven safe to fall back.
 
-- use high-level delegation when the scope is unclear
-- inspect and share only what is needed for the immediate task
-- avoid broad accidental disclosure such as whole disks, unrelated workspace roots, or unrelated private directories
-- keep Codex responsible for supervision and final review
+Desktop/Hub visibility can vary by Antigravity version. Consume the receipt's visibility evidence instead of assuming every successful request appears in the same UI surface.
 
-## Waiting and Permission Prompts
+## 9. Workspace binding must stay explicit
 
-If Gemini seems slow but the local session is alive, do not immediately assume the bridge failed. Antigravity may be waiting for a local permission prompt such as file access, workspace access, or an approval button in the UI.
+Bind the intended workspace and keep delegation scoped to the user's authorized task/repository.
 
-Default behavior:
+Do not broaden access to:
 
-- keep waiting or polling the existing cascade rather than sending repeated follow-up prompts
-- on timeout, ask the user to check the Antigravity UI for a pending permission prompt
-- after the user clicks approve, continue reading the same cascade before starting a new one
+- unrelated repositories;
+- home-directory contents;
+- whole disks;
+- unrelated private directories.
 
-## Platform limits
+The trust capsule pre-authorizes delegation through this bridge for the current user-granted task/workspace; it does not expand the scope.
 
-- `ConvertTo-AntigravityFileUri` accepts Windows drive-letter paths and POSIX absolute paths, but still rejects UNC paths.
-- `Discover-AntigravitySession.ps1` auto-discovers Windows `%APPDATA%` logs and macOS `~/Library/Logs/Antigravity/*.log`, then falls back to the newest `~/Library/Application Support/Antigravity/logs/<timestamp>/` snapshot when needed.
-- `Discover-AntigravitySession.ps1` and `antigravity_bridge.py` auto-discover Windows `%APPDATA%`, macOS `~/Library/Logs/Antigravity`, and Linux/WSL `~/.config/Antigravity/logs` & `~/.local/share/Antigravity/logs`.
+## 10. Localhost does not mean local inference
 
-## Permission Errors & Tool Search Recovery
+The bridge transport to Antigravity is localhost (`127.0.0.1`). That does not prove the configured model inference stays on-device.
 
-- **Local scope**: The bridge is a loopback (`127.0.0.1`) collaborator. Keep
-  requests within the workspace and respect any real permission or approval
-  failure reported by Antigravity; do not silently bypass it.
-- **Tool search fallback**: If native MCP tools are unavailable, try the
-  bundled PowerShell or Python bridge from the shell. If that fallback also
-  fails, stop and report the concrete error instead of claiming success.
-- **Role Division**: Gemini is the primary writer/executor for heavy coding tasks; Codex is the supervisor/reviewer. Codex provides high-level directions to Gemini, but directly patches small, localized edits itself to minimize token consumption.
+Do not document or tell the user that all data remains strictly local unless the configured inference stack independently guarantees that.
 
-## Thread Capability Snapshots
+## 11. Conceptual delegation permission is separate from runtime permission
 
-A Codex thread can lose a skill-only bridge capability after long runs, context compaction, or tool snapshot refreshes. That does not prove Antigravity is down.
+Do not repeatedly ask whether Codex may “use Gemini” through this bridge when the user has already authorized the current task/workspace.
 
-For plugin-based MCP loading, two package details are easy to miss:
+Still surface real permission events such as:
 
-- the plugin manifest must carry `bundledContentVariant: legacy-mcp`, matching Codex-bundled MCP plugins
-- installed `.mcp.json` copies should use an absolute Python command when possible, because GUI-launched Codex sessions may not inherit the same PATH as a terminal
-- the installer also registers `antigravity_bridge_codex` through `codex mcp add`; prefer that stable user-level MCP server if a thread sees the plugin skill but not the plugin-provided MCP tools
+- expired login;
+- Antigravity UI approval;
+- OS/sandbox denial;
+- sudo/elevation;
+- scope expansion beyond the authorized workspace.
 
-Recovery order:
+## 12. Delivery identity must survive retries
 
-- rediscover the live Antigravity session from logs
-- use `scripts/Invoke-AntigravityBridge.ps1` when `pwsh` is available
-- use `scripts/antigravity_bridge.py` when only Python/shell fallback is available
-- use the plugin MCP tools from `.mcp.json` when the Codex session exposes them
-## Delivery identity, journal, and fallback boundary
+The visible RPC path is idempotent only when the caller keeps the original `request_id` and receipt.
 
-The Python visible-RPC delivery path is idempotent only when the caller creates request_id before the first send, keeps the receipt, and reuses the key for retries. An omitted ID is generated only for that invocation, not for cross-call deduplication. Its journal defaults to %LOCALAPPDATA%\AntigravityBridge\requests.sqlite3 on Windows and $XDG_STATE_HOME/AntigravityBridge/requests.sqlite3 (or ~/.local/state/AntigravityBridge/requests.sqlite3) on macOS and Linux, and stores fingerprints, state, cascade/marker IDs, and receipts—not prompt bodies or CSRF secrets.
+Rules:
 
-Same key plus different fingerprint is CONFLICT. After a send begins, IN_PROGRESS, DELIVERY_UNKNOWN, or any other pending/non-terminal result must reconcile the same key/cascade/marker; do not resend or use agy fallback. One global deadline covers RPC, reconciliation, and eligible fallback, so expiration skips fallback.
+- same key + same fingerprint → reconcile/replay;
+- same key + different fingerprint → `CONFLICT`;
+- after send begins, pending or ambiguous states reconcile the same cascade/marker;
+- do not mint a new request ID merely because the current response slice ended.
 
-mission_id/lane_id describe intentional fan-out: same request plus same lane is a retry, while a different lane is a distinct worker. PowerShell has no separate persistent journal. A full antigravity_squad coordinator is not implemented.
+The journal stores delivery metadata and sanitized receipts, not prompt bodies or CSRF secrets.
 
-See [AWS idempotent APIs](https://docs.aws.amazon.com/ec2/latest/devguide/ec2-api-idempotency.html) and MCP [progress](https://modelcontextprotocol.io/specification/latest/basic/patterns/progress)/[cancellation](https://modelcontextprotocol.io/specification/latest/basic/patterns/cancellation).
+## 13. Lane cancellation is not remote cancellation
+
+A local lane marked cancelled/fenced only changes bridge coordination. It does not prove that a previously dispatched Antigravity task stopped running.
+
+Therefore local lane cancellation alone must never authorize a same-workspace replacement writer.
+
+## 14. GUI recovery must be conservative
+
+Do not open another Antigravity GUI process when an existing process may still be alive or warming up. Do not kill/restart a process unless ownership is proven and no pending delivery can be harmed.
+
+## 15. MCP/tool snapshots can disappear without Antigravity being down
+
+A Codex thread can lose a tool snapshot after compaction or session changes. Recovery order:
+
+1. use the installed v2 MCP route if available;
+2. use `scripts/antigravity_bridge_v2.py` from the local package/workspace;
+3. let the v2 front door reuse the compatibility transport;
+4. only then report a concrete bridge failure.
+
+Tool absence by itself is not proof that Antigravity is offline.
+
+## 16. Remote persistence must be verified remotely
+
+When maintenance work is supposed to reach GitHub `main`, do not trust a local commit, temp directory, patch file, or summary.
+
+Verify the actual remote branch SHA and changed-file list before claiming completion.

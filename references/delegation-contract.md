@@ -1,100 +1,91 @@
 # Delegation Contract
 
-## Purpose
+Use one bounded task packet per delegated objective.
 
-Use this template whenever Codex delegates execution to Antigravity or Gemini CLI.
-
-## Required Fields
+## Required fields
 
 ### Goal
-
-State one concrete outcome.
-
-Example:
-`Write a 1000-word traditional Chinese article explaining event sourcing to junior backend engineers.`
+One concrete outcome.
 
 ### Context
-
-Include only the files, snippets, or facts needed to complete the task.
+Only the files, facts, and workspace area needed for the task.
 
 ### Constraints
-
-Spell out rules such as:
-
-- preserve existing behavior
-- no unrelated refactors
-- use Traditional Chinese
-- do not install packages
-- do not run destructive commands
+Examples:
+- preserve existing behavior;
+- no unrelated refactors;
+- use Traditional Chinese;
+- do not install packages;
+- do not run destructive commands.
 
 ### Deliverables
+Name exact outputs: patch, document, tests, summary, or evidence.
 
-Name the exact outputs expected:
+### Acceptance checks
+Write checks Codex can verify independently.
 
-- patch
-- markdown draft
-- test file
-- summary
-- command log
+### Stop conditions
+Return control when:
+- a required tool is unavailable;
+- a real permission/runtime event blocks progress;
+- requirements conflict;
+- the task would exceed the authorized scope.
 
-### Acceptance Checks
-
-Write checks Codex can verify afterward.
-
-Examples:
-
-- article length is between 900 and 1100 words
-- includes three concrete examples
-- changed tests pass
-- no files outside the target set were edited
-
-### Stop Conditions
-
-Tell the worker when to hand control back.
-
-Examples:
-
-- missing required tool
-- test failure outside the requested scope
-- ambiguity about conflicting requirements
-- action would need elevated permissions
-
-## Reusable Prompt Template
+## Reusable task packet
 
 ```text
-You are the execution worker. Complete only the requested task.
+You are the execution worker for this bounded task.
 
 Goal:
-<one concrete outcome>
+<one outcome>
 
-Context:
-<files, snippets, facts>
+Workspace / relevant files:
+<explicit scope>
 
 Constraints:
-<style, safety, scope, forbidden actions>
+<rules and forbidden actions>
 
 Deliverables:
-<exact outputs expected>
+<exact outputs>
 
 Acceptance checks:
 <what Codex will verify>
 
 Stop conditions:
-<when to stop and return control>
+<when to return control>
 
 Return:
-1. what you changed
+1. what you changed or concluded
 2. evidence for the acceptance checks
-3. open risks or uncertainties
+3. remaining risks or uncertainties
 ```
 
-## Packaging Notes
+## Delivery identity
 
-- Prefer one task packet per objective.
-- If the task contains unrelated goals, split it before delegation.
-- If acceptance checks are hard to write, the task is probably underspecified.
-### Delivery identity
+Create one stable `request_id` before the first bridge send and retain its receipt.
 
-For bridge-delivered work, create one UUID request_id before the first send, retain its receipt, and repeat that exact key for retries. Do not send a new prompt after a non-terminal receipt; reconcile the saved key with the same cascade/marker.
+- same request ID + same fingerprint = retry/reconciliation;
+- same request ID + different fingerprint = conflict;
+- a non-terminal receipt must reconcile the existing cascade/marker instead of creating a replacement send.
 
-For intentional parallel experts, state mission_id and give each independent worker a different lane_id. The same request plus the same lane is a retry, not another worker. Do not assume antigravity_squad coordination exists.
+For intentional parallel experts, assign separate `lane_id` values under the same `mission_id`.
+
+## Handoff contract
+
+Do not infer another worker may write from timeout, silence, local lane cancellation, or `STALLED` alone.
+
+A same-workspace replacement writer requires the bridge receipt to explicitly state:
+
+```text
+may_handoff_write = true
+```
+
+Read-only review/warm standby may proceed when:
+
+```text
+may_handoff_read = true
+```
+
+while write takeover remains fenced.
+
+`DELIVERY_UNKNOWN`, `ACCEPTED_PENDING`, `INPUT_REQUIRED`, `PREPARING`, `IN_PROGRESS`, and `DELIVERING` never authorize a second same-workspace writer.

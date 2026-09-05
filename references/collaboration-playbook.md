@@ -1,121 +1,89 @@
 # Collaboration Playbook
 
-## Purpose
+Use this playbook for user + Codex + Antigravity/Gemini collaboration.
 
-Use this playbook when Codex wants a true three-way collaboration pattern: user + Codex + Gemini. In that pattern, Gemini is usually the main writer or executor, and Codex is the supervising reviewer.
+## Role split
 
-## First-Turn Intro
+- **Gemini / Antigravity:** creative scout, primary heavy writer/executor, broad first pass.
+- **Codex:** planner, scope controller, reviewer, final acceptance gate.
+- **Luna / secondary worker:** bounded finisher or reviewer; same-workspace writing only when the bridge explicitly marks handoff write-safe.
 
-For a fresh cascade, send a one-time intro before the real task. Keep it warm, short, and role-aware.
+## First turn
 
-Recommended cute-family style intro:
+For a fresh cascade, identify Codex briefly and state the working relationship once. Do not repeat the introduction every turn.
+
+Example:
 
 ```text
-I am Codex, your partner today to help our master. I am responsible for planning, organizing, and verifying, while you execute or brainstorm on the Antigravity side. Let's collaborate like family; if information is missing, remind me directly.
+Codex here. I will define scope and verify the result; please take the heavy first pass on the Antigravity side. If a requirement or permission event blocks you, report it explicitly instead of guessing.
 ```
 
-Rules:
+Then move immediately to the task packet.
 
-- send it only once per new cascade
-- do not repeat it every turn
-- explicitly say that Codex is speaking before the task handoff; never start with an anonymous task dump
-- make the role split clear early: Gemini writes or executes first, Codex supervises and verifies
-- after the intro, move quickly to the real task
-- if later turns could be ambiguous, restate briefly that this is Codex speaking before giving the next instruction
+## File-aware handoff
 
-## Turn-Taking Pattern
+When local artifacts are involved:
 
-1. Open with one concrete topic.
-2. Wait for Gemini's actual reply.
-3. Pull one or two keywords or decisions out of that reply.
-4. Ask the next question based on those actual details.
-5. Repeat until the goal is clear enough to act on.
+- name exact files when known;
+- otherwise name the narrow repository area to inspect;
+- if the user authorized whole-workspace inspection, name the workspace root and ask for a summary-first map before file-level edits;
+- do not ask Gemini to “fix whatever looks wrong” without boundaries;
+- include acceptance checks when precision matters.
 
-## Role Split
+## Turn taking
 
-Default split:
+1. Send one bounded objective.
+2. Observe Gemini's actual response/trajectory.
+3. Follow up from real evidence, not a pre-scripted future conversation.
+4. Re-state only the constraints that are at risk of being forgotten.
+5. Verify the artifact before accepting the result.
 
-- Gemini does the main writing, drafting, or first-pass editing
-- prefer the lowest Codex-token path: if the task needs lots of writing, repeated edits, or brainstorming, give Gemini only the high-level direction first and let Gemini draft
-- for large writing tasks, long drafts, or many similar edits, Gemini should own the bulk-writing pass after Codex gives direction, scope boundaries, file paths, and acceptance checks
-- Codex defines scope, reminds Gemini of file context and constraints, and performs the acceptance review
-- if the remaining change is tiny, localized, or quicker to do directly than to delegate, Codex can patch it without spending another Gemini turn
-- Codex should take over direct writing only when Gemini is blocked, drifting, or when review would take longer than fixing the issue directly
+## Long-running work
 
-## Improvisation Rule
+Do not interpret a slow or missing final reply as failure while meaningful progress continues.
 
-Do not pre-script every turn when the goal is genuine conversation.
+Progress evidence can include:
 
-Good:
-- Gemini mentions `subcommand pattern`
-- Codex follows up on why that matters for automation
+- trajectory step growth;
+- search/tool/browser/command/file events;
+- planner-response growth;
+- other deterministic supervisor-signature changes.
 
-Bad:
-- Codex prewrites four future turns before seeing Gemini's first answer
+If the response slice ends in `ACTIVE_PENDING`, keep the same request/cascade and reconcile later. Do not launch a replacement writer just to make the chat feel responsive.
 
-## File-Aware Handoff
+## Read-only warm standby
 
-When the task is about local code or documents, use a file-aware handoff before discussing changes in depth.
+When `may_handoff_read = true` but `may_handoff_write = false`, Luna or another reviewer may inspect the task, acceptance criteria, or current artifacts read-only.
 
-Rules:
+This can reduce takeover latency without creating competing edits.
 
-- if the exact files are known, list the exact file paths that are currently being changed or reviewed
-- if the exact files are not locked yet, say that explicitly and name the expected file area, candidate files, or content surfaces
-- if the user explicitly authorizes whole-workspace inspection, name the workspace root, say that Gemini is inspecting the user's local workspace on the same machine through the locally logged-in Antigravity session, and ask for a summary-first pass before drilling into file-level edits
-- only skip file handoff when the task is genuinely pure discussion with no current local artifact to inspect
-- name the workspace root when it matters
-- ask Gemini to read the named files or inspect the named area first and summarize what it sees before proposing edits
-- keep the file list tight when possible; for a full-workspace pass, ask for a short map of relevant areas first instead of dumping raw contents
-- restate the goal and acceptance checks when precision matters, because Gemini is often smart and imaginative but can still forget details or drop part of the scope
+If Gemini becomes active again, the standby reviewer should remain non-writing unless a separate independent lane was explicitly assigned.
 
-Good:
-- `I am Codex. Please inspect D:\MyGame\antigravity-bridge-codex\SKILL.md and D:\MyGame\antigravity-bridge-codex\references\collaboration-playbook.md first, then tell me what you think should change.`
-- `Codex here. Please inspect D:\MyGame\antigravity-bridge-codex\SKILL.md and D:\MyGame\antigravity-bridge-codex\references\collaboration-playbook.md first, then tell me what you think should change.`
-- `I am Codex. The exact file is not locked yet. This likely lives in the add-reminder screen copy and TTS wording files under D:\MyGame\little-bear-reminder. Please inspect that area first and tell me which files look relevant before proposing copy changes.`
-- `I am Codex. The user explicitly authorized a full-workspace pass. Please inspect D:\MyGame\antigravity-bridge-codex on this same local machine through the locally logged-in Antigravity session, give me a short map of the most relevant areas for monetization and future roadmap discussion, then we will narrow to the specific files.`
+## Forgetfulness guardrail
 
-Bad:
-- `Please inspect these files and tell me what to change.`
-- `Help me improve the skill.`
-- `Please fix whatever looks wrong in the repo.`
-- `Read the whole workspace.`
-- `Here is the product idea.`
+Gemini can generate strong ideas and still skip details. Reduce that risk by giving it:
+
+- the goal;
+- current file/workspace scope;
+- constraints;
+- deliverables;
+- acceptance checks;
+- stop conditions.
+
+Do not spend Codex tokens writing the entire solution first unless the remaining work is already small enough to patch directly.
 
 ## Markers
 
-When automated capture matters, ask Gemini to finish with a unique marker on its own line.
+Use a unique completion marker for automation/smoke checks when exact capture matters. Avoid decorative markers in casual human-visible chat.
 
-Examples:
-- `[[TURN1_DONE]]`
-- `DONE_WEB_20260621-150811`
-- `READY_MEMORY_NO_ECHO`
+## Review gate
 
-Prefer markers for:
-- multi-turn automation
-- capability verification
-- smoke tests
+Before reporting success, Codex must independently check:
 
-Avoid markers for:
-- casual human-visible chat unless you need exact capture
+- the response actually answered the requested objective;
+- expected files/artifacts exist;
+- required tests/evidence pass when applicable;
+- scope did not drift;
+- a GitHub change is actually present on the remote target branch when persistence matters.
 
-## Forgetfulness Guardrail
-
-Gemini can generate strong ideas quickly, but sometimes skips a file, forgets a constraint, or answers only part of the request.
-
-To reduce that risk:
-
-- restate the in-scope files before asking for edits
-- treat Gemini as smart but forgetful: do not spend extra Codex tokens prewriting the whole draft; give the goal, file paths, constraints, and acceptance checks first, and for a user-approved full-workspace pass ask for a concise area summary before file-level work
-- for heavy writing, give Gemini only the high-level direction, scope boundaries, file paths, and acceptance checks instead of drafting the whole thing in Codex first
-- repeat the acceptance checks before final implementation passes
-- if Gemini proposes a wide change, narrow the scope again before approving it
-- inspect the actual artifact instead of trusting a confident summary
-
-## Review Gate
-
-Even in a friendly conversation, Codex is still the acceptance gate.
-
-Before trusting Gemini's answer:
-- check whether the reply actually answered the question
-- check whether the claimed action created or changed the expected artifact
-- check whether a web-access claim is supported by the trajectory step types
+A confident summary from any worker is not sufficient completion evidence.

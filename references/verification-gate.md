@@ -2,63 +2,79 @@
 
 ## Rule
 
-Codex does not trust completion claims without evidence.
+Codex does not trust completion claims without evidence. Worker confidence, a local patch, or a temporary sandbox file is never sufficient by itself.
 
-Review the worker output before replying to the user.
-
-## Universal Checks
+## Universal checks
 
 - The output matches the requested goal.
-- Scope stayed within the allowed boundaries.
+- Scope stayed within the user-authorized boundary.
 - Constraints were respected.
 - Deliverables actually exist.
 - The worker did not silently skip a hard requirement.
+- If the bridge receipt is non-terminal or ambiguous, do not claim the delegated work is finished.
 
-## Writing Tasks
-
-Check:
-
-- requested language and tone
-- approximate length
-- factual consistency
-- no obvious filler or repetition
-- structure matches the request
-
-If the user asked for 1000 words, verify the result is actually near that target before reporting success.
-
-## Code Tasks
+## Code tasks
 
 Check:
 
-- only intended files changed
-- implementation matches the requested behavior
-- tests were added or updated when needed
-- local verification was run when feasible
-- no accidental refactors leaked in
+- intended files changed and unrelated files did not;
+- implementation matches the requested behavior;
+- relevant regression coverage exists;
+- local verification was run when feasible;
+- no safety boundary was weakened to make the happy path faster.
 
-## Research Tasks
+For Antigravity bridge changes specifically, confirm:
+
+- active trajectory progress does not become a false stall;
+- `DELIVERY_UNKNOWN`, `ACCEPTED_PENDING`, `INPUT_REQUIRED`, `PREPARING`, `IN_PROGRESS`, and `DELIVERING` never authorize a second same-workspace writer;
+- `safe_to_fallback` and `may_handoff_write` remain separate decisions;
+- managed trust remains task/workspace-scoped and preserves user-authored `AGENTS.md` text.
+
+## Remote persistence tasks
+
+When the user asks for a GitHub change, verify the actual remote repository before saying the work is saved:
+
+1. fetch the target branch from GitHub;
+2. confirm its HEAD SHA is the expected commit;
+3. compare the previous and new SHAs;
+4. inspect the remote changed-file list;
+5. only then report completion.
+
+A commit that exists only in `/tmp`, a detached worktree, a sandbox, or a local clone is not delivered.
+
+## Writing / documentation tasks
 
 Check:
 
-- claims are supported
-- sources are identified when required
-- uncertain points are marked as uncertain
-- stale assumptions are not presented as facts
+- language and tone;
+- factual consistency with the current implementation;
+- commands and paths actually exist;
+- documentation does not claim the project is more migrated, local, tested, or automated than it really is;
+- obsolete references are removed instead of merely hidden behind newer text.
 
-## Retry Decision
+## Research tasks
+
+Check:
+
+- claims are supported;
+- sources are identified when required;
+- uncertain points are marked uncertain;
+- stale assumptions are not presented as current facts.
+
+## Retry decision
 
 ### Accept
 
-Use when the result meets the goal and remaining issues are trivial.
+Use when the goal and acceptance evidence are both satisfied.
 
 ### Re-delegate
 
-Use when the result is salvageable but one or two gaps remain.
+Use when the result is salvageable but a bounded gap remains and the original worker is safe to continue.
 
-### Take Over Directly
+### Take over directly
 
-Use when review would take longer than fixing the remaining issue yourself.
+Use for a small localized fix when doing so does not violate writer-fencing or delivery safety.
 
-### Escalate To User
+### Escalate
 
-Use when the task is blocked by missing tools, permissions, or conflicting requirements.
+Use when blocked by a real permission/runtime event, missing capability, conflicting requirement, or a delivery state that cannot be reconciled safely.

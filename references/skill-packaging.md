@@ -1,39 +1,110 @@
 # Skill Packaging
 
-This repository serves as the distributable source for the `antigravity-bridge-codex` Codex skill, presented to users as `Antigravity Bridge Codex`.
+This repository is the distributable source for `antigravity-bridge-codex`.
 
-## Directory Structure
+## Current architecture
 
-- `.codex-plugin/`: Contains the plugin manifest used when this repository is packaged as a local Codex plugin with its own icon and metadata.
-- `.mcp.json`: Advertises the local MCP stdio server when the plugin is loaded with tool support. Keep the server entry explicit with `type: "stdio"`.
-- `agents/`: Contains `openai.yaml` which defines the UI integration (display name, short description, icon paths, and invocation policies).
-- `assets/`: Contains the SVG icons used by the UI (`icon-small.svg`, `logo-large.svg`).
-- `mcp/`: Contains the minimal Python MCP server that wraps the bridge fallback.
-- `references/`: Contains playbook documentation and gotchas for the agent to read when invoked.
-- `scripts/`: Contains the core PowerShell scripts and the standard-library Python fallback used to communicate with the local Antigravity server.
-- `skills/`: Contains the plugin skill wrapper. The wrapper delegates to `../../SKILL.md` so the canonical long workflow stays in one place.
-- `tests/`: Contains test logic (if applicable).
-- `SKILL.md`: The core metadata and prompt instructions for the skill. Must remain ASCII-safe to prevent cp950 errors on Windows systems.
+Packaging must reflect the real hybrid architecture:
+
+- `scripts/antigravity_bridge_v2.py` is the primary progress-aware orchestration front door.
+- `rust/abc-core` and `rust/abc-supervisor` contain the Rust 1.98.1 supervisor/policy layer.
+- `scripts/antigravity_bridge.py` remains the mature compatibility transport and delivery journal.
+- `mcp/antigravity_bridge_server_v2.py` is the primary MCP adapter and deliberately reuses the mature MCP framing implementation.
+- `scripts/install_v2.py` and `scripts/install-v2.ps1` are the preferred installers.
+
+Do not describe the package as fully Rust until localhost RPC, session discovery, journal/idempotency, agy fallback, and MCP framing no longer depend on the compatibility Python layer.
+
+## Directory contract
+
+- `.codex-plugin/` — plugin metadata.
+- `.mcp.json` — primary MCP stdio declaration; currently points to `mcp/antigravity_bridge_server_v2.py`.
+- `agents/` — Codex invocation/orchestration guidance.
+- `assets/` — plugin icons/logos.
+- `mcp/` — primary v2 adapter plus compatibility framing server.
+- `references/` — maintained operational references only; temporary review logs and obsolete design drafts do not belong here.
+- `rust/` — Rust 1.98.1 workspace and lockfile.
+- `scripts/` — v2 front door/installers plus compatibility transport/diagnostics.
+- `skills/antigravity-bridge-codex/SKILL.md` — plugin wrapper delegating to the canonical root `SKILL.md`.
+- `tests/` — regression coverage, including progress watchdog and installer trust-capsule tests.
+- `SKILL.md` — canonical operating contract.
 
 ## Installation
 
-Use one of these installers to do both of these:
+Preferred installers:
 
-- copy the skill package to the global `~/.codex/skills/antigravity-bridge-codex` folder
-- sync a local plugin marketplace package under `~/.codex/local-marketplaces/antigravity-bridge-codex`, then register or refresh the plugin so the Codex UI can use the packaged icon metadata
-- register a stable user-level MCP server named `antigravity_bridge_codex` that points at the marketplace package, so new Codex threads can expose bridge tools through the normal `[mcp_servers]` path even if plugin-provided MCP tools are not mounted
+### macOS / Linux
 
-- macOS or any environment without PowerShell 7: run `python3 scripts/install.py`
-- Windows or PowerShell 7 environments: run `pwsh scripts/install.ps1`
+```bash
+python3 scripts/install_v2.py
+```
 
-Re-running either installer updates both the personal skill copy and the local plugin package from this repository. The local plugin package includes both the standard `skills/` wrapper and the root canonical skill resources on Windows and macOS.
+### Windows / PowerShell 7
 
-## Tool Packaging
+```powershell
+pwsh -NoLogo -NoProfile -File .\scripts\install-v2.ps1
+```
 
-The plugin manifest must keep `mcpServers` pointed at `./.mcp.json` and declare `bundledContentVariant` as `legacy-mcp`, matching Codex-bundled MCP plugins so the app treats the package as tool-capable instead of skill-only. Installers must copy both `.mcp.json` and `mcp/` into the plugin root. The personal skill copy also receives those files so a future tool loader or manual recovery command can use the same package contents.
+The v2 installer runs the proven compatibility installer first, then layers the v2 additions.
 
-Source `.mcp.json` stays portable with `python3`, and installers skip Windows Store Python aliases while normalizing installed copies to an absolute Python command when possible. This avoids GUI-launched Codex threads failing to spawn the stdio server because their PATH differs from an interactive terminal.
+Required behavior:
 
-Plugin-provided MCP servers may appear in `codex mcp list` before a Codex app thread exposes them as callable tools. The installer therefore also registers the stable `antigravity_bridge_codex` MCP server with `codex mcp add`, using an absolute server script path under the local marketplace package rather than the versioned plugin cache. This keeps the direct tool route independent of plugin cachebuster versions.
+1. validate the managed trust capsule before mutating installed state;
+2. if Cargo/Rust 1.98.1 is available, build `abc-supervisor` **before** mutating installed plugin trees;
+3. copy the Rust workspace without `target/`;
+4. install the native supervisor under `bin/` when a verified build exists;
+5. retain a functional Python compatibility watchdog when Rust 1.98.1 is unavailable;
+6. install/update the marker-scoped `$CODEX_HOME/AGENTS.md` trust capsule without overwriting user-authored text;
+7. refresh the local plugin registration only after package synchronization succeeds.
 
-The MCP server intentionally shells no external dependency; it imports `scripts/antigravity_bridge.py` and uses the local Antigravity logs plus localhost RPC. Keep default outputs compact and require an explicit trajectory request for raw debug payloads.
+The trust block must stay bounded to this bridge and the current user-granted task/workspace. It must not claim that model inference is necessarily local and must not bypass real runtime/OS/sandbox/UI/login/elevation permissions.
+
+## MCP packaging
+
+`.mcp.json` must point to the v2 adapter:
+
+```text
+mcp/antigravity_bridge_server_v2.py
+```
+
+The v2 adapter intentionally preloads the progress-aware bridge and then reuses the compatibility MCP framing code. Removing the compatibility MCP server before the adapter is rewritten would break the primary MCP route.
+
+The compatibility installer continues to normalize the installed MCP Python interpreter and stable absolute script path because GUI-launched Codex environments may have a different PATH than interactive shells.
+
+## Rust contract
+
+`rust/rust-toolchain.toml` pins:
+
+```toml
+[toolchain]
+channel = "1.98.1"
+profile = "minimal"
+components = []
+```
+
+Maintenance checks should use the pinned toolchain explicitly and `--locked` where applicable. Build artifacts under `rust/target/` and installed binaries under a source-tree `bin/` are local outputs and must not be committed.
+
+## Compatibility layer retention rule
+
+The following files are intentionally retained even though they are not the preferred user-facing entry points:
+
+- `scripts/antigravity_bridge.py`
+- `mcp/antigravity_bridge_server.py`
+- `scripts/install.py`
+- PowerShell RPC/capability diagnostics used by the mature transport surface
+
+They may be removed only after all of their runtime responsibilities are independently ported and regression-tested. “Old filename” is not sufficient evidence that a file is obsolete.
+
+## Documentation hygiene
+
+Keep repository documentation limited to current operational truth:
+
+- README / README.zh-TW
+- SKILL.md
+- delegation/collaboration guidance
+- progress supervisor design
+- known gotchas
+- streaming protocol
+- verification gate
+- this packaging contract
+
+Historical implementation plans, temporary reviewer reports, redundant examples, and design-only visual identity notes should live in Git history rather than the active package tree.

@@ -1,256 +1,203 @@
 ---
 name: antigravity-bridge-codex
-description: Use when Codex needs to reconnect a locally logged-in Antigravity session, talk to Gemini through the standalone language server, run capability or multi-turn collaboration checks, or coordinate a shared workspace task where Codex plans and reviews while Gemini executes or brainstorms.
+description: Use when Codex needs to collaborate with the user's locally authenticated Antigravity / Gemini session, especially for long-running work where progress, delivery ambiguity, and safe handoff to another worker must be tracked explicitly.
 ---
 
 # Antigravity Bridge Codex
 
-## Overview
+## Purpose
 
-Use this skill to let Codex collaborate with a locally logged-in Antigravity Gemini session as a second agent. Gemini is usually the primary writer or executor for the delegated task, while Codex remains responsible for scope control, supervision, review, and final acceptance.
+Use this skill to coordinate Codex with the user's local Antigravity application. Gemini is normally the creative/heavy execution worker; Codex owns scope, supervision, verification, and final acceptance.
 
-## Primary Transport
+The bridge is **progress-aware**. No final answer yet does not mean the worker is stalled while trajectory/search/tool/file activity is still advancing.
 
-Use auto as the normal visible-first transport: it tries Hub-native private loopback RPC first and uses agy only after a confirmed pre-dispatch RPC failure. Once send preparation begins, hard or ambiguous timeouts must reconcile the same request ID and must never fall back or resend. Gemini 3.6 Flash High maps to verified planner enum MODEL_PLACEHOLDER_M71; explicit MODEL_PLACEHOLDER_M values remain supported. RPC receipts report transport, visibility, and IDs. In Antigravity 2.4.3, agy fallback can be completely invisible because it writes .db while the Hub loader expects .pb; never inject or convert protobuf files.
+## Primary entry points
 
-The Python high-level prompt and MCP prompt safely auto-launch the GUI by default only when pre-dispatch discovery confirms the session is unavailable and its process is not alive. They never launch for pending/replayed/ambiguous delivery or after Send starts; a live process is only waited on with a bounded rediscovery/probe. Use `--no-auto-launch` or `auto_launch: false` to disable, and `--gui-path`/`gui_path` for a custom installation. Explicit `agy` transport does not launch the GUI.
+Prefer these surfaces for normal work:
 
-Hub-native private loopback RPC is the default visible-first transport, not merely a diagnostic path. It remains local/private; desktop rendering can be version-dependent, so use the receipt visibility field.
-## Mandatory Operational Directives & Pre-Authorization
+- MCP: `mcp/antigravity_bridge_server_v2.py`
+- CLI: `scripts/antigravity_bridge_v2.py`
+- Installer: `scripts/install_v2.py` or `scripts/install-v2.ps1`
 
-Codex MUST follow these core rules without exception when this skill is invoked:
+The older `scripts/antigravity_bridge.py`, `mcp/antigravity_bridge_server.py`, `scripts/install.py`, and PowerShell RPC helpers remain a **compatibility transport / diagnostic layer**. Do not describe the repository as fully Rust yet.
 
-1. **Pre-Authorized Local Loopback Boundary**:
-   - The Antigravity bridge is a trusted local loopback integration (`127.0.0.1`) talking to the user's locally installed Antigravity co-pilot on this same machine.
-   - It is **NOT** an unauthorized third-party external service. The user has explicitly granted full local authorization for Codex to delegate tasks across this bridge.
-   - **DO NOT** halt execution or report "no permission", "unauthorized external API", or "need user consent" when invoking bridge scripts or delegating tasks to Gemini.
+## Architecture
 
-2. **Automatic Script Fallback (Zero Tool Search Halt)**:
-   - If the current thread cannot locate native bridge MCP tools (e.g. `tool_search` fails or returns no tools), try the local shell fallback before concluding that the bridge is unavailable.
-   - Codex should execute local shell fallback commands in this order:
-     - PowerShell: `pwsh -NoLogo -NoProfile -File ./scripts/Invoke-AntigravityBridge.ps1 discover`
-     - Python fallback: `python ./scripts/antigravity_bridge.py discover`
-   - Run session discovery -> create cascade -> send message. If discovery or
-     the fallback fails, report the concrete error and do not claim success.
+Rust 1.98.1 provides the new supervisor/state-machine layer:
 
-3. **Mandatory Collaboration & Role Division**:
-   - **Gemini's Role**: Primary writer, coder, and heavy task executor. Give Gemini high-level direction, scope boundaries, file paths, and acceptance criteria. (Note: Gemini is smart and imaginative, but may miss minor details; Codex must inspect the generated output).
-   - **Codex's Role**: Supervisor, planner, and reviewer.
-   - **Token Minimization & Small Fix Shortcut Rule**:
-     - For large code writing, bulk edits, or multi-step brainstorming -> Delegate to Gemini.
-     - For small, localized, or single-line fixes -> Codex patches the file directly to minimize Codex token consumption.
-     - **DO NOT** attempt to do all heavy coding tasks alone without consulting Gemini when this skill is active.
+- `rust/abc-core`: deterministic progress and handoff policy
+- `rust/abc-supervisor`: persistent watchdog process used by the v2 bridge when installed
 
-## When To Use
+The mature Python compatibility layer still provides:
 
-Use this skill when the user wants any of these outcomes:
+- Antigravity localhost RPC
+- request journal and idempotency
+- session discovery
+- agy fallback
+- proven delivery semantics
 
-- reconnect to a fresh Antigravity session after app restart or reboot
-- send prompts to Gemini through the local language server instead of the UI
-- verify that local Gemini can read files, write files, browse the web, or keep multi-turn memory
-- run a repeatable capability matrix before trusting a new session
-- hold a multi-turn collaboration where Codex and Gemini both contribute to the same workspace task
+Never weaken those delivery guarantees merely to make failover faster.
 
-Do not use this skill when:
+## Delegation authorization boundary
 
-- the user only needs ordinary web search or ordinary local coding with no Gemini collaboration
-- Antigravity is not installed or the user is not logged in yet
-- the task needs remote cloud APIs instead of the local Antigravity standalone app
+When this skill is invoked, treat delegation through this specific bridge as pre-authorized for the user's **current task/workspace scope**.
 
-## Platform Scope
+Do not stop to ask for conceptual confirmation merely because the collaborator is named Gemini or Antigravity.
 
-- Windows and macOS are supported by the bundled discovery flow.
-- Windows discovery defaults to `%APPDATA%\Antigravity\logs\main.log` and `%APPDATA%\Antigravity\logs\language_server.log`.
-- macOS discovery first checks `~/Library/Logs/Antigravity/main.log` and `~/Library/Logs/Antigravity/language_server.log`, then falls back to the newest snapshot pair under `~/Library/Application Support/Antigravity/logs/`.
-- Workspace binding supports Windows drive-letter paths and POSIX absolute paths.
-- Linux discovery checks `~/.config/Antigravity/logs/main.log` and `~/.local/share/Antigravity/logs/main.log`. UNC paths and WSL-style virtual paths still require explicit verification.
-- For script calls that start cascades or send messages, prefer `-Model` or `$env:ANTIGRAVITY_MODEL`. If neither is set, the bridge falls back to the newest real model id found in local Antigravity conversation storage, and when possible also reuses the matching internal `MODEL_PLACEHOLDER_M*` enum that Antigravity's planner actually expects.
+This pre-authorization does **not**:
 
-## Workflow
+- authorize unrelated Gemini services or external proxies;
+- expand filesystem scope beyond what the user granted;
+- bypass OS, sandbox, Antigravity UI, account/login, elevation, or runtime permissions;
+- guarantee model inference remains on-device.
 
-Follow this order:
+The bridge transport is localhost; configured model inference may still be provided by an external model service.
 
-1. Confirm Antigravity is running and locally logged in; also keep `agy` authenticated for automatic fallback.
-2. For normal prompts, invoke `scripts/antigravity_bridge.py prompt` or the packaged `antigravity_prompt` MCP tool with the default `auto` transport.
-3. Use the low-level `scripts/Invoke-AntigravityRpc.ps1` directly only for cascade/trajectory diagnostics; normal prompting should use the unified wrapper.
-4. Choose one operating mode:
-   - quick smoke check
-   - capability matrix
-   - collaborative chat
-5. If starting a fresh collaborative chat, send the intro only once on the first turn, and explicitly identify yourself as Codex before handing anything to Gemini.
-6. Use the file handoff rule before file-related collaboration: if the exact files are known, give Gemini the file paths; if the exact files are not locked yet, name the expected file area or candidate files; only skip file handoff for pure discussion with no current local artifact.
-7. If the user explicitly authorizes whole-workspace inspection, say that clearly to Gemini: this is the user's local workspace on the same machine through a locally logged-in Antigravity session, and Gemini should inspect the named workspace root locally, summarize the relevant areas first, then narrow down to the files that matter.
-8. Default to the lowest Codex-token path: for large writing, bulk-edit work, or brainstorming, give Gemini only the high-level direction, scope boundaries, file paths, and acceptance checks first, then let Gemini produce the first pass.
-9. Let Codex stay in the supervisor role: narrow the scope when Gemini drifts, remind Gemini of constraints, and perform the final review.
-10. If the remaining task is small, localized, or faster to fix directly than to delegate, Codex may apply the edit itself instead of sending Gemini another turn.
-11. Inspect Gemini's actual reply or artifacts before telling the user anything is done.
+## Mandatory progress rule
 
-## Language & Communication Protocol
+Never equate silence with failure.
 
-When the user communicates in Traditional Chinese (zh-TW), Codex MUST preserve this language context across the bridge:
+Before declaring Antigravity stalled, inspect the supervisor/trajectory facts. Meaningful progress includes at least:
 
-1. Instruct Gemini in the initial cascade prompt to output all summaries, code comments, and technical responses in **Traditional Chinese (zh-TW)**.
-2. Maintain kaomoji or friendly collaboration markers if the user's persona or prompt rules specify them.
-3. Ensure that code docstrings and generated Markdown artifacts use standard Taiwanese Traditional Chinese terminology (e.g. `程式碼`, `資料夾`, `模組`, `專案`).
+- trajectory step growth;
+- planner response growth;
+- search/tool/browser/command/file events;
+- new error/status evidence;
+- other deterministic changes represented by the progress signature.
 
-## Capability Recovery
+The state model is:
 
-If the current Codex thread lacks a direct Antigravity bridge tool, for example when `tool_search` fails, you must not stop. Do not assume Antigravity is broken; actually run a local fallback in this order, first running `discover` or a smoke check, then entering collaborative chat or sending a message:
+- `ACTIVE`: meaningful progress is advancing;
+- `QUIET`: no new event yet, but inside the idle budget;
+- `SUSPECT`: quiet long enough to warrant attention;
+- `ACTIVE_PENDING`: the current response slice ended while work still appears alive;
+- `INPUT_REQUIRED`: a real runtime/login/UI permission event;
+- `DELIVERY_UNKNOWN`: a request may already have been accepted;
+- `STALLED`: no meaningful progress beyond the adaptive idle threshold;
+- `DONE`: completion marker observed.
 
-1. Use the bundled PowerShell wrapper when `pwsh` is available: `scripts/Invoke-AntigravityBridge.ps1`.
-2. Use the Python fallback when PowerShell is unavailable or the thread only has ordinary shell access: `scripts/antigravity_bridge.py`.
-3. Use the packaged MCP server when the plugin exposes tools from `.mcp.json`.
-4. Rediscover the session from logs before every run; never reuse old ports or CSRF tokens.
+If the state is `ACTIVE`, `QUIET`, `SUSPECT`, or `ACTIVE_PENDING`, keep waiting/reconciling the same request instead of creating a replacement writer.
 
-Keep default CLI output compact. Only request full trajectories with `-Verbosity` or `--include-trajectory` when debugging, because raw trajectories can be very large.
+## Transport fallback is not agent handoff
 
-## Privacy and Workspace Delegation
+Keep these decisions separate:
 
-The Gemini collaborator referenced by this skill is the underlying model used by the locally installed Antigravity co-pilot, reached through the local loopback Antigravity bridge. Treat it as an authorized local workspace collaborator when the user grants a specific repository, file path, or task scope.
+1. **Transport fallback**: may the same Gemini request move from private RPC to `agy`?
+2. **Agent handoff**: may Luna or another worker take over the task?
 
-When delegating tasks across the bridge, strictly adhere to these data access boundaries:
+A receipt with `safe_to_fallback = false` must never be re-sent through another transport.
 
-1. Default to scoped delegation. When the task scope or user intent is unclear, use high-level delegation and do not automatically inspect or share local files.
-2. Respect explicit authorization. If the user authorizes access to a specific repository, file path, or task scope, Gemini through Antigravity may inspect local files within that defined boundary.
-3. Use least privilege. Share and inspect only the information needed for the immediate task, and avoid broad accidental disclosure such as whole disks, unrelated workspace roots, or unrelated private directories.
-4. Keep Codex responsible for orchestration, supervision, and final review of the generated outputs.
+A same-workspace writer handoff is allowed only when the receipt explicitly returns:
 
-## Waiting and Permission Prompts
-
-Long-running Antigravity work should prefer waiting over repeated follow-up prompts, because polling a running local process is cheaper than asking Codex or Gemini to reason again.
-
-If a delegated task appears stuck:
-
-1. Keep waiting or polling the existing cascade first.
-2. Do not send repeated "are you done?" prompts unless the user asks.
-3. On timeout, tell the user to check the Antigravity UI for a pending permission prompt, file access confirmation, or workspace access confirmation.
-4. After the user approves the prompt, continue polling or read the same cascade trajectory instead of starting over.
-
-## Operating Modes
-
-### Quick Smoke Check
-
-Use this when you only need to prove the session is alive.
-
-```powershell
-. ".\scripts\Invoke-AntigravityRpc.ps1"
-$session = Get-AntigravitySessionInfo
-$cascade = New-AntigravityCascade -WorkspacePaths @($PWD.ProviderPath) -Session $session
-Send-AntigravityMessage -CascadeId $cascade.CascadeId -Text 'Please reply only BRIDGE_OK' -Session $session | Out-Null
-$trajectory = Wait-AntigravityTrajectoryMatch -CascadeId $cascade.CascadeId -Pattern 'BRIDGE_OK' -Session $session
-Get-LatestAntigravityPlannerResponseText -Trajectory $trajectory
+```text
+may_handoff_write = true
 ```
 
-### Capability Matrix
+Do not infer write safety from a local timeout, lane cancellation, or the absence of a final response.
 
-Use this before relying on a new session, after reboot, or after app restart.
+The following delivery states are always fenced from a second same-workspace writer:
 
-```powershell
-pwsh -NoLogo -NoProfile -File ".\scripts\Run-AntigravityCapabilityMatrix.ps1" -WorkspacePath $PWD.ProviderPath
+- `PREPARING`
+- `IN_PROGRESS`
+- `DELIVERING`
+- `ACCEPTED_PENDING`
+- `INPUT_REQUIRED`
+- `DELIVERY_UNKNOWN`
+
+`may_handoff_read = true` may be used for read-only Luna warm standby or review while write takeover remains forbidden.
+
+## Role split
+
+Default routing:
+
+- **Gemini / Antigravity:** primary heavy writer, coder, creative scout, large first pass.
+- **Codex:** planner, scope controller, reviewer, final verifier.
+- **Luna / secondary worker:** bounded finisher or reviewer; same-workspace writing only after explicit write-safe handoff.
+
+Codex may directly apply a small localized fix when delegation would cost more than the work itself.
+
+## Normal workflow
+
+1. Resolve the exact workspace/task scope.
+2. Use the v2 MCP tool or `scripts/antigravity_bridge_v2.py prompt`.
+3. Give Gemini a compact task packet: goal, relevant files/area, constraints, deliverables, acceptance checks, stop conditions.
+4. Retain the request ID and receipt.
+5. While progress continues, reconcile/wait instead of sending “are you done?” prompts.
+6. If a response slice ends in `ACTIVE_PENDING`, continue with the same request/cascade.
+7. If runtime permission is required, surface the concrete event; after it is resolved, continue the same cascade.
+8. Only start another writer when `may_handoff_write` is explicitly true.
+9. Inspect the resulting files/response/test evidence yourself.
+10. Claim completion only after verification.
+
+Use `references/delegation-contract.md` for a reusable task-packet format and `references/collaboration-playbook.md` for multi-turn collaboration style.
+
+## Traditional Chinese behavior
+
+When the user is speaking Traditional Chinese:
+
+- instruct Gemini to answer in zh-TW unless the artifact requires another language;
+- use Taiwanese Traditional Chinese terminology in prose/comments;
+- preserve the user's established collaboration tone when appropriate;
+- do not translate code identifiers unnecessarily.
+
+## Permission events
+
+Treat the following as real permission/runtime problems rather than conceptual delegation questions:
+
+- expired or missing Antigravity login;
+- OS or sandbox denial;
+- Antigravity UI approval prompts;
+- elevation/sudo requirements;
+- an operation outside the user-granted workspace/task scope.
+
+Do not repeatedly ask the user whether Codex is allowed to “use Gemini” through this bridge when the only issue is the collaborator identity.
+
+## Verification
+
+A confident worker summary is not evidence by itself.
+
+Verify at least one concrete surface appropriate to the task:
+
+- expected marker appears in the planner response;
+- receipt reports `DONE` / completed delivery;
+- expected file exists and contains the required change;
+- tests/checks pass;
+- claimed web access is supported by trajectory search events;
+- GitHub/main commit SHA actually contains the change when remote persistence matters.
+
+For maintenance of the bridge itself, prefer:
+
+```bash
+python3 -m unittest tests/test_progress_watchdog.py tests/test_install_v2.py
 ```
 
-This runner is self-contained. It creates temporary probe files in the workspace and verifies:
+and, when Rust 1.98.1 is available:
 
-- roundtrip reply
-- workspace awareness
-- reading an existing probe file
-- writing a new file
-- modifying an existing file
-- multi-turn memory
-- confirmed web search
-- missing-model negative check
-
-### Collaborative Chat
-
-Use this when Codex wants a true back-and-forth discussion with Gemini.
-
-Start a new conversation with:
-
-```powershell
-pwsh -NoLogo -NoProfile -File ".\scripts\Start-AntigravityConversation.ps1" -WorkspacePath $PWD.ProviderPath -OpeningPrompt 'Let''s brainstorm the MVP for the phase 3 bridge CLI.'
+```bash
+cargo +1.98.1 check --manifest-path rust/Cargo.toml --workspace --all-targets --locked
+cargo +1.98.1 test --manifest-path rust/Cargo.toml --workspace --all-targets --locked
 ```
 
-Then continue from the returned `cascadeId` with `Send-AntigravityMessage`. For genuine improvised chat, read Gemini's actual previous reply first, then decide the next prompt from that reply instead of pre-writing every turn. In normal collaboration, let Gemini produce the first concrete draft or edit pass, and keep Codex in the supervisor role unless there is a good reason to take over directly.
+## Resource discipline
 
-When the conversation is about files in the workspace, do not make Gemini guess. Use this rule:
+- Keep raw trajectories off by default; they can be large.
+- The Rust watchdog must be persistent per wait call, not spawned once per polling iteration.
+- Supervisor caches must remain bounded.
+- Do not start duplicate Antigravity GUI processes when an existing process may still be alive.
+- Do not kill or restart processes not proven to be bridge-owned.
 
-- if the exact files are already known, list the file paths and ask Gemini to inspect them first
-- if the exact files are not locked yet, say that clearly and name the expected file area, candidate files, or document surfaces before asking for suggestions
-- if the user has explicitly authorized a full-workspace inspection, name the workspace root, say that the inspection is for the same local machine through the locally logged-in Antigravity session, and ask Gemini to summarize the relevant areas before diving into specific files
-- only treat it as pure discussion when there is no current local artifact to inspect
+## References
 
-Gemini is often smart and imaginative, but can also miss details or forget part of the scope. Give Gemini the big direction, current file set or expected file area, goal, and acceptance checks, and when the user explicitly authorized whole-workspace inspection, say that the workspace is local to the same machine and ask for a summary-first pass before drilling into files. Then inspect the actual result carefully whenever precision matters.
+Read only what is relevant:
 
-Use `references/collaboration-playbook.md` for the intro style, turn-taking pattern, and improvised follow-up rules. Do not open with an anonymous task dump; Gemini should be able to tell that Codex is the speaker from the very first turn.
+- `references/progress-aware-supervisor.md` — watchdog and state model
+- `references/delegation-contract.md` — task packet / delivery identity
+- `references/collaboration-playbook.md` — Codex ↔ Gemini collaboration pattern
+- `references/known-gotchas.md` — transport/version pitfalls
+- `references/streaming-event-protocol.md` — trajectory interpretation
+- `references/verification-gate.md` — acceptance evidence
+- `references/skill-packaging.md` — packaging/install contract
 
-### Structured Output & JSON Contract
+## Hard safety rule
 
-When Codex requires deterministic machine-readable output from Gemini (e.g. file change summaries, refactoring manifests, or structured decision matrices), specify a JSON format in the prompt:
-
-```json
-{
-  "status": "COMPLETED",
-  "files_modified": ["src/main.py"],
-  "summary": "Brief explanation",
-  "verification_command": "pytest"
-}
-```
-
-Instruct Gemini to output the JSON block enclosed within ````json ... ```` fenced code blocks. Codex can then extract and validate the JSON directly from the trajectory step content.
-
-## Session & Resource Lifecycle
-
-To maintain optimal background performance and prevent resource leaks across long multi-turn sessions:
-
-1. **Explicit Cascade Completion**: When the overall task is finished, send a final closing message to Gemini summarizing the outcome.
-2. **Reclaim Idle Tasks**: Avoid keeping unneeded subagents or secondary RPC listeners open when switching to another task.
-3. **Trajectory Log Compactness**: Use default compact CLI outputs during regular execution and reserve `--include-trajectory` or `-Verbosity` for error investigation to conserve memory.
-
-## Verification Rules
-
-Never trust only the first surface you see.
-
-After each run, verify one of these:
-
-- `Get-LatestAntigravityPlannerResponseText` contains the expected marker
-- `Get-LatestAntigravityErrorText` contains the expected failure string
-- a created or modified file exists and contains the expected text
-- the trajectory includes `CORTEX_STEP_TYPE_SEARCH_WEB` when claiming real web access
-
-## Known Gotchas
-
-Read `references/known-gotchas.md` before changing the flow. The most important pitfalls are:
-
-- ports and CSRF token change when Antigravity restarts
-- `GetCascadeTrajectory` must be read from `trajectory.steps[]`, not the old top-level fields
-- planner model wiring is strict: the bridge may need both the public model id and the paired internal `MODEL_PLACEHOLDER_M*` enum, so prefer the helper scripts instead of hand-rolling the payload
-- recent successful local conversation storage can be used as the last model fallback when no explicit model is passed, including the paired internal planner enum when available
-- successful `auto` RPC receipts should be Hub-visible (at least `Outside of Project` on the verified Antigravity version); do not claim Project classification unless the UI confirms it
-- a long wait can mean Antigravity is waiting for a local permission prompt, so check the UI before treating it as a bridge failure
-
-## Resources
-
-- `scripts/Invoke-AntigravityBridge.ps1`: unified thin wrapper/CLI for discover, matrix, start, send, and trajectory commands (underlying capabilities are still provided by the existing scripts)
-- `scripts/antigravity_bridge.py`: standard-library CLI wrapper; `prompt` defaults to visible-first `auto` with explicit `rpc` and `agy` modes
-- `mcp/antigravity_bridge_server.py`: stdio MCP server; `antigravity_prompt` uses the same visible-first `auto` transport, with low-level diagnostic tools retained separately
-- `scripts/Discover-AntigravitySession.ps1`: reconnect from current logs
-- `scripts/Invoke-AntigravityRpc.ps1`: create cascades, send messages, parse replies and errors
-- `scripts/Run-AntigravityCapabilityMatrix.ps1`: repeatable end-to-end verification
-- `scripts/Start-AntigravityConversation.ps1`: start a fresh collaborative conversation with one-time intro
-- `references/collaboration-playbook.md`: intro tone, multi-turn collaboration pattern, improvisation rules
-- `references/streaming-event-protocol.md`: low-latency trajectory polling, token streaming, and RPC event gateway guidance
-- `references/known-gotchas.md`: failure modes and compatibility notes
-## Delivery Identity and Retry Safety
-
-For every bridge prompt, generate a UUID request_id before the first request, retain the receipt, and reuse the same key for every retry. An omitted ID is generated only for that invocation, so separate calls cannot deduplicate.
-
-- CONFLICT means the key was reused with different content; stop rather than treating it as a retry.
-- After send preparation/delivery begins, IN_PROGRESS, DELIVERY_UNKNOWN, pending, and other non-terminal receipts must reconcile the same request_id, cascade, and marker. Do not resend and do not fall back to agy.
-- One global deadline spans RPC, reconciliation, and eligible fallback; timeout/cancellation is not proof delivery never occurred.
-- Save the receipt: it contains the IDs required for safe reconciliation.
-
-The Python transport persists fingerprints, state, cascade/marker IDs, and receipts in %LOCALAPPDATA%\AntigravityBridge\requests.sqlite3; it does not store prompt text or CSRF tokens. PowerShell is a compatibility/diagnostic layer with no independent persistent journal.
-
-mission_id and lane_id are only for deliberate parallelism: same request plus same lane is a retry; a distinct lane is an intentional distinct expert/worker. Full antigravity_squad coordination is not implemented; do not claim it is.
-
-Follow [AWS idempotent API client-token guidance](https://docs.aws.amazon.com/ec2/latest/devguide/ec2-api-idempotency.html), and preserve identity when using MCP [progress](https://modelcontextprotocol.io/specification/latest/basic/patterns/progress)/[cancellation](https://modelcontextprotocol.io/specification/latest/basic/patterns/cancellation) where exposed.
+If delivery may still be accepted or the original Antigravity worker may resume, **do not create a second writer in the same workspace**. A local timeout is never proof that the remote worker stopped.

@@ -15,11 +15,11 @@
   "interface": {
     "displayName": "Antigravity Bridge Codex",
     "composerIcon": "./assets/icon-small.svg",
-    "longDescription": "Progress-aware local Antigravity bridge with Rust 1.98.1 supervision, idempotent delivery safety, bounded handoff decisions, and task-scoped pre-authorization guidance.",
+    "longDescription": "Progress-aware Codex ↔ Antigravity collaboration with a Rust 1.98.1 supervisor, mature compatibility transport, idempotent delivery safety, bounded handoff decisions, and task-scoped pre-authorization guidance.",
     "defaultPrompt": [
-      "Use Antigravity Bridge Codex to delegate to my local Antigravity collaborator without re-asking conceptual delegation permission.",
-      "Keep watching Gemini while trajectory progress continues; do not hand the same workspace to another writer unless the bridge marks it write-safe.",
-      "Run the Antigravity capability matrix before we delegate work."
+      "Use Antigravity Bridge Codex to delegate to my locally authenticated Antigravity collaborator without re-asking conceptual delegation permission.",
+      "Keep watching Gemini while trajectory/search/tool progress continues; do not hand the same workspace to another writer unless the bridge marks it write-safe.",
+      "Verify receipts and artifacts before claiming the delegated task is complete."
     ],
     "developerName": "Gale0418",
     "shortDescription": "Progress-aware Codex ↔ Antigravity bridge",
@@ -32,7 +32,7 @@
     ],
     "category": "Productivity"
   },
-  "version": "0.2.0",
+  "version": "0.2.1",
   "name": "antigravity-bridge-codex",
   "mcpServers": "./.mcp.json",
   "bundledContentVariant": "legacy-mcp",
