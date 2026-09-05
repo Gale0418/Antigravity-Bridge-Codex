@@ -4,7 +4,7 @@
       "type": "stdio",
       "command": "python",
       "args": [
-        "./mcp/antigravity_bridge_server.py"
+        "./mcp/antigravity_bridge_server_v2.py"
       ],
       "cwd": "."
     }

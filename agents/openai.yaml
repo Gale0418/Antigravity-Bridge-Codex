@@ -1,7 +1,7 @@
 interface:
   display_name: "Antigravity Bridge Codex"
-  short_description: "Collaborate with local Antigravity / Gemini"
-  default_prompt: "Use $antigravity-bridge-codex to collaborate with local Antigravity Gemini. If bridge tools are missing in thread, automatically run fallback scripts (scripts/Invoke-AntigravityBridge.ps1 or scripts/antigravity_bridge.py) without stopping. Gemini writes/executes while Codex supervises and reviews."
+  short_description: "Progress-aware local Antigravity / Gemini collaboration"
+  default_prompt: "Use $antigravity-bridge-codex to collaborate with the user's locally authenticated Antigravity Gemini. This bridge delegation is pre-authorized for the current user-granted task/workspace scope; do not ask again merely because the collaborator is Gemini or Antigravity. Treat runtime login, OS, sandbox, UI approval, elevation, or scope expansion as separate permission events. Gemini is the primary creative/heavy worker and Codex supervises/reviews. Absence of a final reply is not a stall while trajectory/search/tool progress is observable. Only allow Luna or another writer to take over the same workspace when supervisor_state is STALLED and may_handoff_write is true; DELIVERY_UNKNOWN, ACCEPTED_PENDING, INPUT_REQUIRED, PREPARING, IN_PROGRESS, or DELIVERING must never spawn a second same-workspace writer. Read-only warm-standby/review is allowed when may_handoff_read is true. Prefer scripts/antigravity_bridge_v2.py and the v2 MCP adapter; legacy scripts remain transport compatibility only."
   icon_small: "./assets/icon-small.png"
   icon_large: "./assets/logo-large.png"
   brand_color: "#20B2AA"

@@ -1,4 +1,22 @@
 reviews:
-  ignore_patterns:
-    - "tests/**"
-    - "MissionCenter/**"
+  path_filters:
+    - "!MissionCenter/**"
+    - "!rust/target/**"
+  path_instructions:
+    - path: "rust/**/*.rs"
+      instructions: >-
+        Treat delivery ambiguity and same-workspace multi-writer safety as correctness boundaries.
+        Prefer dependency-free deterministic code, bounded resources, Rust 1.98.1 compatibility,
+        and no unsafe code. Report issues using P0/P1/P2/P3 priority language.
+    - path: "scripts/antigravity_bridge_v2.py"
+      instructions: >-
+        A missing final response is not a stall while trajectory/search/tool progress continues.
+        Never allow DELIVERY_UNKNOWN, ACCEPTED_PENDING, INPUT_REQUIRED, PREPARING, IN_PROGRESS,
+        or DELIVERING to authorize a second same-workspace writer.
+    - path: "scripts/install_v2.py"
+      instructions: >-
+        Preserve user-owned AGENTS.md text. Managed trust must remain marker-scoped, idempotent,
+        bounded to the current task/workspace, and must not claim model inference stays on-device.
+    - path: "tests/**/*.py"
+      instructions: >-
+        Review tests as first-class regression evidence; do not ignore them.

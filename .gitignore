@@ -11,3 +11,4 @@ __pycache__/
 /pytest-cache-files-????????/
 .tmp_python_probe.txt
 .worktrees/
+rust/target/

@@ -8,19 +8,21 @@
     "gemini",
     "bridge",
     "skill",
-    "local"
+    "local",
+    "rust",
+    "multi-agent"
   ],
   "interface": {
     "displayName": "Antigravity Bridge Codex",
     "composerIcon": "./assets/icon-small.svg",
-    "longDescription": "Reconnects a locally logged-in Antigravity session, sends prompts through the standalone language server, and exposes Antigravity Bridge Codex so Codex can collaborate through the local bridge.",
+    "longDescription": "Progress-aware local Antigravity bridge with Rust 1.98.1 supervision, idempotent delivery safety, bounded handoff decisions, and task-scoped pre-authorization guidance.",
     "defaultPrompt": [
-      "Use Antigravity Bridge Codex to reconnect a local Gemini session.",
-      "Start a local Gemini collaboration in my current workspace.",
+      "Use Antigravity Bridge Codex to delegate to my local Antigravity collaborator without re-asking conceptual delegation permission.",
+      "Keep watching Gemini while trajectory progress continues; do not hand the same workspace to another writer unless the bridge marks it write-safe.",
       "Run the Antigravity capability matrix before we delegate work."
     ],
     "developerName": "Gale0418",
-    "shortDescription": "Talk to local Antigravity from Codex",
+    "shortDescription": "Progress-aware Codex ↔ Antigravity bridge",
     "brandColor": "#20B2AA",
     "screenshots": [],
     "logo": "./assets/logo-large.svg",
@@ -30,12 +32,12 @@
     ],
     "category": "Productivity"
   },
-  "version": "0.1.0",
+  "version": "0.2.0",
   "name": "antigravity-bridge-codex",
   "mcpServers": "./.mcp.json",
   "bundledContentVariant": "legacy-mcp",
   "skills": "./skills/",
-  "description": "Bridge Codex with a locally logged-in Antigravity Gemini session.",
+  "description": "Progress-aware bridge between Codex and a locally authenticated Antigravity Gemini session.",
   "author": {
     "email": "Gale0418@users.noreply.github.com",
     "url": "https://github.com/Gale0418",

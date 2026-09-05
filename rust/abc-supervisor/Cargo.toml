@@ -1,0 +1,12 @@
+[package]
+name = "abc-supervisor"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+abc-core = { path = "../abc-core" }
+
+[lints]
+workspace = true
